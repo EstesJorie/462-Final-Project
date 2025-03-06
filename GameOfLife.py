@@ -50,6 +50,10 @@ def main():
         print(f"Number of generations equals {gens}. Enter a value greater to continue.")
         gens = int(input("Enter number of generations: "))
 
+    if gens == 4 or gens == 9 or gens == 14 or gens == 19 or gens == 24:
+        os.system("pause")
+        print("Press 'Q' to quit.")
+
     for gen in range(gens):
         os.system('cls' if os.name == 'nt' else 'clear') #clear console
         print(f"Generation {gen + 1}:")
