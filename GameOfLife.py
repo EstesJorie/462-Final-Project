@@ -1,6 +1,7 @@
 import random
 import time
 import os
+import readchar
 
 def findNextGen(mat):
     m = len(mat)
@@ -50,14 +51,16 @@ def main():
         print(f"Number of generations equals {gens}. Enter a value greater to continue.")
         gens = int(input("Enter number of generations: "))
 
-    if gens == 4 or gens == 9 or gens == 14 or gens == 19 or gens == 24:
-        os.system("pause")
-        print("Press 'Q' to quit.")
-
     for gen in range(gens):
         os.system('cls' if os.name == 'nt' else 'clear') #clear console
         print(f"Generation {gen + 1}:")
-        printGrid(mat) #print current grid
+        if gen % 9 == 0: #prompt continue every ten generations
+            print("Press 'Q' to quit or any other key to continue.")
+            k = readchar.readchar()
+            if k.lower() == 'q':
+                break
+        else:
+            printGrid(mat) #print current grid
         mat = findNextGen(mat) #find next generation 
         time.sleep(0.75) #.75 sec pause between generations
 
