@@ -3,67 +3,58 @@ import time
 import os
 import readchar
 
-def findNextGen(mat):
-    m = len(mat)
-    n = len(mat[0])
-    nextGen = [[0 for _ in range(n)] for _ in range(m)]
-
-    directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-
-    for i in range(m):
-        for j in range(n):
-            liveNeighbours = 0
-
-            for dir in directions: #count live neighhbours
-                ni = i + dir[0]
-                nj = j + dir[1]
-                if 0 <= ni < m and 0 <= nj < n and mat[ni][nj]:
-                    liveNeighbours += 1
-
-            if mat[i][j] == 1 and (liveNeighbours == 2 or liveNeighbours == 3):
-                nextGen[i][j] = 1 #cell lives
-            elif mat[i][j] == 0 and liveNeighbours == 3:
-                nextGen[i][j] = 1 #cell becomes live
-            else:
-                nextGen[i][j] = 0 #cell dies
+class GameOfLife:
+    def __init__(self, rows, cols):
+        self.rows = rows
+        self.cols = cols
+        self.grid = self.initRandomGrid()
+        self.directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        self.generation = 0
     
-    return nextGen
-
-def initRandomGrid(m, n): #random grid 
-    return [[random.randint(0, 1) for _ in range(n)] for _ in range(m)]
-
-def printGrid(mat): #print current grid
-    for row in mat:
-        print(" ".join('*' if cell == 1 else '.' for cell in row ))
-    print()
-
-def main():
-    m, n = map(int, input("Enter no. of rows and columns: ").split())
-
-    if m < 3 or n < 3: #input validation
-        print(f"Invalid input please enter a value greater than {m},{n}. ")
-        m, n = map(int, input("Enter no. of rows and columns: ").split())
+    def initRandomGrid(self):
+        return [[random.randint(0, 1) for _ in range(self.cols)] for _ in range(self.rows)]
     
-    mat = initRandomGrid(m, n)
-    gens = int(input("Enter number of generations: "))
-
-    if gens <= 1: #generation validation
-        print(f"Number of generations equals {gens}. Enter a value greater to continue.")
-        gens = int(input("Enter number of generations: "))
-
-    for gen in range(gens):
-        os.system('cls' if os.name == 'nt' else 'clear') #clear console
-        print(f"Generation {gen + 1}:")
-        if gen % 9 == 0: #prompt continue every ten generations
-            print("Press 'Q' to quit or any other key to continue.")
-            k = readchar.readchar()
-            if k.lower() == 'q':
-                break
-        else:
-            printGrid(mat) #print current grid
-        mat = findNextGen(mat) #find next generation 
-        time.sleep(0.75) #.75 sec pause between generations
-
-if __name__ == "__main__":
-    main()
-
+    def printGrid(self):
+        for row in self.grid:
+            print(" ".join('*' if cell == 1 else '.' for cell in row))
+        print()
+    
+    def countLiveNeighbors(self, i, j):
+        live_neighbors = 0
+        for di, dj in self.directions: #loop through neighbour directions
+            ni, nj = i + di, j + dj
+            if 0 <= ni < self.rows and 0 <= nj < self.cols and self.grid[ni][nj]: #valid neighbour
+                live_neighbors += 1 #increment live neighbours
+        return live_neighbors
+    
+    def calculateNextGeneration(self):
+        next_gen = [[0 for _ in range(self.cols)] for _ in range(self.rows)] #create single row, repeat for number of rows
+        
+        for i in range(self.rows):
+            for j in range(self.cols):
+                live_neighbors = self.countLiveNeighbors(i, j)
+                
+                if self.grid[i][j] == 1 and (live_neighbors == 2 or live_neighbors == 3):
+                    next_gen[i][j] = 1  # Cell survives
+                elif self.grid[i][j] == 0 and live_neighbors == 3:
+                    next_gen[i][j] = 1  # Cell becomes alive
+                else:
+                    next_gen[i][j] = 0  # Cell dies
+        
+        self.grid = next_gen
+        self.generation += 1
+    
+    def runSimulation(self, generations):
+        for gen in range(generations):
+            os.system('cls' if os.name == 'nt' else 'clear')  # Clear console
+            print(f"Generation {gen + 1}:")
+            
+            if gen % 9 == 0 and gen > 0:  # Prompt to continue every 10 generations
+                print("Press 'Q' to quit or any other key to continue.")
+                k = readchar.readchar()
+                if k.lower() == 'q':
+                    break
+            
+            self.printGrid()
+            self.calculateNextGeneration()
+            time.sleep(0.75)  # 0.75 second pause between generations
