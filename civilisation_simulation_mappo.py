@@ -2,28 +2,32 @@ import random
 import time
 import os
 
+# === Represents a single cell in the grid ===
 class Cell:
     def __init__(self):
-        self.population = 0
-        self.food = 0.0
-        self.tribe = None
+        self.population = 0     # Number of people in this cell
+        self.food = 0.0         # Amount of food in this cell
+        self.tribe = None       # Tribe ID that owns this cell
 
     def is_empty(self):
         return self.population == 0
 
+    # Efficiency is based on diminishing returns: more people, lower efficiency
     def get_efficiency(self):
         if self.population <= 0:
             return 0
         return sum(1 / (i + 1) for i in range(self.population))
 
+# === Simulation of the civilization map and tribal actions ===
 class CivilizationSimulation_MAPPO:
     def __init__(self, rows, cols, num_tribes):
         self.rows = rows
         self.cols = cols
-        self.grid = [[Cell() for _ in range(cols)] for _ in range(rows)]
+        self.grid = [[Cell() for _ in range(cols)] for _ in range(rows)]  # Create a grid of cells
         self.num_tribes = num_tribes
-        self.init_tribes()
+        self.init_tribes()  # Place tribes initially
 
+    # Randomly assign initial cells to each tribe
     def init_tribes(self):
         placed = 0
         while placed < self.num_tribes:
@@ -34,6 +38,7 @@ class CivilizationSimulation_MAPPO:
                 self.grid[i][j].tribe = placed + 1
                 placed += 1
 
+    # Generator that yields valid neighboring cell coordinates (8 directions)
     def neighbors(self, i, j):
         for di in [-1, 0, 1]:
             for dj in [-1, 0, 1]:
@@ -43,22 +48,28 @@ class CivilizationSimulation_MAPPO:
                 if 0 <= ni < self.rows and 0 <= nj < self.cols:
                     yield ni, nj
 
+    # Simulate one turn based on provided actions from each tribe
     def take_turn(self, tribe_actions):
-        new_grid = [[Cell() for _ in range(self.cols)] for _ in range(self.rows)]
+        new_grid = [[Cell() for _ in range(self.cols)] for _ in range(self.rows)]  # Prepare new grid for next state
+
         for i in range(self.rows):
             for j in range(self.cols):
                 cell = self.grid[i][j]
                 if cell.population > 0:
                     tribe_id = cell.tribe
                     action = tribe_actions[tribe_id - 1]
-                    if action == 0:  # gather
+
+                    # === Perform action based on tribe's decision ===
+                    if action == 0:  # Gather food
                         food_gained = cell.get_efficiency()
                         cell.food += food_gained
-                    elif action == 1:  # grow
+
+                    elif action == 1:  # Grow population
                         if cell.food >= cell.population:
                             cell.food -= cell.population
                             cell.population += 1
-                    elif action == 2:  # expand
+
+                    elif action == 2:  # Expand into a neighboring empty cell
                         if cell.food >= 5 and cell.population >= 4:
                             for ni, nj in self.neighbors(i, j):
                                 if self.grid[ni][nj].is_empty():
@@ -67,8 +78,9 @@ class CivilizationSimulation_MAPPO:
                                     new_grid[ni][nj].tribe = cell.tribe
                                     cell.population -= 2
                                     cell.food -= 5
-                                    break
+                                    break  # Only expand into one cell
 
+                    # === Handle food consumption and starvation ===
                     food_required = cell.population / 5
                     if cell.food < food_required:
                         starvation = food_required - cell.food
@@ -77,14 +89,17 @@ class CivilizationSimulation_MAPPO:
                         cell.food = 0
                     else:
                         cell.food -= food_required
-                    if cell.population <= 0:
-                        continue
-                    if new_grid[i][j].is_empty():
+
+                    # If population still exists, keep the cell in the new grid
+                    if cell.population > 0 and new_grid[i][j].is_empty():
                         new_grid[i][j].population = cell.population
                         new_grid[i][j].food = cell.food
                         new_grid[i][j].tribe = cell.tribe
+
+        # Update grid to the new state
         self.grid = new_grid
 
+    # Print a simplified view of the grid with tribe IDs
     def printGrid(self):
         print("\n=== Civilization Map ===")
         for row in self.grid:
@@ -97,6 +112,7 @@ class CivilizationSimulation_MAPPO:
                     line += ".   "
             print(line)
 
+    # Print debug-level info for each non-empty cell
     def printDebugInfo(self):
         print("\n=== Debug Info ===")
         for i, row in enumerate(self.grid):
@@ -107,6 +123,7 @@ class CivilizationSimulation_MAPPO:
                         f"Food: {round(cell.food, 2)} | Eff: {round(cell.get_efficiency(), 2)}"
                     )
 
+    # Print total stats (population, food) per tribe
     def printStats(self):
         print("\n=== Tribe Stats Summary ===")
         tribe_data = {}
