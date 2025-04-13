@@ -24,7 +24,7 @@ class CivilizationEnv_MAPPO:
         return obs
 
     def step(self, actions):
-        self.sim.take_turn(actions)  # ✅ 使用 MAPPO 动作控制
+        self.sim.take_turn(actions)  
         obs = self._get_obs()
         rewards = self._compute_rewards()
         done = False
