@@ -8,24 +8,24 @@ class Cell:
         self.food = 0.0
         self.tribe = None
 
-    def is_empty(self):
+    def isEmpty(self):
         return self.population == 0
 
-    def get_efficiency(self):
+    def getEfficiency(self):
         # Diminishing returns per person (to promote expansion)
         if self.population <= 0:
             return 0
         return sum(1 / (i + 1) for i in range(self.population))
 
-class CivilizationSimulation:
+class CivilisationSimulation:
     def __init__(self, rows, cols, num_tribes):
         self.rows = rows
         self.cols = cols
         self.grid = [[Cell() for _ in range(cols)] for _ in range(rows)]
         self.num_tribes = num_tribes
-        self.init_tribes()
+        self.initTribes()
 
-    def init_tribes(self):
+    def initTribes(self):
         placed = 0
         while placed < self.num_tribes:
             i, j = random.randint(0, self.rows - 1), random.randint(0, self.cols - 1)
@@ -44,7 +44,7 @@ class CivilizationSimulation:
                 if 0 <= ni < self.rows and 0 <= nj < self.cols:
                     yield ni, nj
 
-    def take_turn(self):
+    def takeTurn(self):
         new_grid = [[Cell() for _ in range(self.cols)] for _ in range(self.rows)]
 
         for i in range(self.rows):
@@ -144,7 +144,7 @@ class CivilizationSimulation:
         for gen in range(generations):
             os.system('cls' if os.name == 'nt' else 'clear')
             print(f"\nGeneration {gen + 1}")
-            self.take_turn()
+            self.takeTurn()
             self.printGrid()
             self.printDebugInfo()
             self.printStats()
@@ -193,7 +193,7 @@ def main():
     generations = controller.getValidGenerations()
     num_tribes = controller.getValidTribeCount()
 
-    game = CivilizationSimulation(rows, cols, num_tribes)
+    game = CivilisationSimulation(rows, cols, num_tribes)
     game.runSimulation(generations)
 
 if __name__ == "__main__":
