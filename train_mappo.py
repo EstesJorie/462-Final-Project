@@ -3,6 +3,18 @@ from civilization_env_mappo import CivilizationEnv_MAPPO
 from mappo import MAPPOAgent
 from GameController import GameController
 
+import random
+import numpy as np
+import torch
+
+SEED = 7
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 # === Get user-defined simulation parameters via controller UI ===
 controller = GameController()
 rows, cols = controller.getValidDimensions()         # Get valid grid dimensions from user

@@ -1,20 +1,21 @@
 import numpy as np
-from civilisation_simulation_mappo import CivilizationSimulation_MAPPO
+from civilisation_simulation_env import CivilizationSimulation_ENV
 
+SEED = 7
 # === Environment wrapper for CivilizationSimulation, adapted for MAPPO ===
 class CivilizationEnv_MAPPO:
     def __init__(self, rows=5, cols=5, num_tribes=3):
         self.rows = rows
         self.cols = cols
         self.num_tribes = num_tribes
-        self.sim = CivilizationSimulation_MAPPO(rows, cols, num_tribes)  # Core simulation engine
+        self.sim = CivilizationSimulation_ENV(rows, cols, num_tribes, seed=SEED)  # Core simulation engine
         self.num_agents = num_tribes
         self.action_space = [3] * self.num_agents  # Each agent has 3 discrete actions: 0=gather, 1=grow, 2=expand
         self.observation_space = (rows, cols, 3)   # Observation: for each cell - [population, food, tribe_id]
 
     # === Reset environment to a new episode ===
     def reset(self):
-        self.sim = CivilizationSimulation_MAPPO(self.rows, self.cols, self.num_tribes)
+        self.sim = CivilizationSimulation_ENV(self.rows, self.cols, self.num_tribes)
         return self._get_obs()
 
     # === Convert grid state into structured observation (used by agents) ===
@@ -42,7 +43,7 @@ class CivilizationEnv_MAPPO:
                 cell = self.sim.grid[i][j]
                 if cell.tribe:
                     idx = cell.tribe - 1
-                    rewards[idx] += cell.population + cell.food  # Simple reward function: resource accumulation
+                    rewards[idx] += 0.3 * cell.population + 0.2 * cell.food + 2.0
         return rewards
 
     # === Render the current environment state (calls sim’s display methods) ===
