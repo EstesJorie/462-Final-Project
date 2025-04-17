@@ -12,7 +12,7 @@ from civilization_env_hi_mappo import CivilizationEnv_HiMAPPO
 from mappo import MAPPOAgent
 from qmix import QMIXAgent
 from hi_mappo import HiMAPPOAgent
-from civilisation_simulation_2 import CivilizationSimulation  # Random strategy simulation
+from CivilisationSimulation2 import CivilisationSimulation  # Random strategy simulation
 
 # === Set global seed for reproducibility ===
 SEED = 7
@@ -35,6 +35,13 @@ def smooth(data, window=50):
 
 # === Main evaluation function ===
 def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
+    model_dirs = ["trained_models", "trained_models_qmix", "trained_models_hi_mappo"]
+    for dir_path in model_dirs:
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+            print(f"Directory {dir_path} created.")
+            return
+
     obs_dim = rows * cols * 3   # Each cell has 3 features
     act_dim = 3                 # 3 possible actions
     goal_dim = 3                # 3 high-level goals
