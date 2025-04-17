@@ -25,6 +25,7 @@ Additionally, a random strategy baseline is included for performance comparison.
 ├── train_mappo.py                        # MAPPO training script
 ├── train_qmix.py                         # QMIX training script
 ├── train_hi_mappo.py                     # Hi-MAPPO training script
+├── train_all.py                          # Trains on all models (MAPPO/HI-MAPPO/QMIX)
 ├── evaluate_all_model.py                 # Evaluation script comparing MAPPO/QMIX/Hi-MAPPO/Random
 ```
 
@@ -83,12 +84,10 @@ The script generates plots comparing:
 Run one of the following scripts to train the respective agent:
 
 ```bash
-python train_mappo.py
-python train_qmix.py
-python train_hi_mappo.py
+python train_all.py
 ```
 
-The scripts will prompt for grid size, number of training generations, and number of tribes.
+The script can be configured to either run in Test or User mode. Test mode uses predetermined values for each parameter as detailed in this README. User mode allows the user to enter their own custom values for each parameter.  
 
 Model save directories:
 - `trained_models/` (MAPPO)

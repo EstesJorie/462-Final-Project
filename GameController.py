@@ -22,3 +22,14 @@ class GameController:
                     print(f"Number of generations equals {generations}. Enter a value greater than 1 to continue.")
             except ValueError:
                 print("Please enter a valid integer.")
+    @staticmethod
+    def getValidTribeCount():
+        while True:
+            try:
+                tribes = int(input("Enter number of starting tribes: "))
+                if tribes >= 1:
+                    return tribes
+                else:
+                    print("Please enter a value of 1 or more.")
+            except ValueError:
+                print("Please enter a valid integer.")

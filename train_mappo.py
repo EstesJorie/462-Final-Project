@@ -7,72 +7,98 @@ import random
 import numpy as np
 import torch
 
-SEED = 7
-random.seed(SEED)
-np.random.seed(SEED)
-torch.manual_seed(SEED)
-torch.cuda.manual_seed_all(SEED)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+def train_mappo(rows=None, cols=None, generations=None, num_tribes=None, log_interval=100):
+    """""
+    Args:
+        rows (int) - Num of grid rows
+        cols (int) - Num of grid cols, 
+        generations (int) - Num of generations to train
+        num_tribes (int) - Num of tribes to train
+        log_interval (int) - Interval for logging and rendering
 
-# === Get user-defined simulation parameters via controller UI ===
-controller = GameController()
-rows, cols = controller.getValidDimensions()         # Get valid grid dimensions from user
-generations = controller.getValidGenerations()       # Get number of generations (training iterations)
-num_tribes = controller.getValidTribeCount()         # Get number of tribes (agents)
+    Returns:
+        tuple(agent, env) - Trained MAPPO agent and environment
+    """
 
-# === Initialize environment and MAPPO agent ===
-env = CivilizationEnv_MAPPO(rows=rows, cols=cols, num_tribes=num_tribes)
-obs_dim = env.rows * env.cols * 3                    # Observation space: each cell has 3 features
-act_dim = 3                                          # Action space: assume 3 discrete actions per agent
-agent = MAPPOAgent(obs_dim=obs_dim, act_dim=act_dim, num_agents=num_tribes)
+    SEED = 7
+    random.seed(SEED)
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
+    if torch.cuda.is_available():   
+        torch.cuda.manual_seed_all(SEED)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
-# === Training configuration ===
-total_iterations = generations                      # Total training episodes/generations
-log_interval = 100                                  # Log and render output every 100 iterations
+    # === Get user-defined simulation parameters via controller UI ===
+    if rows is None or cols is None or generations is None or num_tribes is None:
+        controller = GameController()
+        rows = rows or controller.getValidDimensions()[0] # Get valid grid dimensions from user
+        cols = cols or controller.getValidDimensions()[1] # Get number of generations (training iterations)
+        generations = generations or controller.getValidGenerations()
+        num_tribes = num_tribes or controller.getValidTribeCount() # Get number of tribes (agents)
 
-# === Begin MAPPO training loop ===
-for iteration in range(1, total_iterations + 1):
-    obs_raw = env.reset()                            # Reset the environment
-    trajectories = []                                # To store trajectory data for MAPPO update
+    # === Initialize environment and MAPPO agent ===
+    env = CivilizationEnv_MAPPO(rows=rows, cols=cols, num_tribes=num_tribes)
+    obs_dim = env.rows * env.cols * 3                    # Observation space: each cell has 3 features
+    act_dim = 3                                          # Action space: assume 3 discrete actions per agent
+    agent = MAPPOAgent(obs_dim=obs_dim, act_dim=act_dim, num_agents=num_tribes)
 
-    # Run a fixed number of steps per episode
-    for step in range(10):
-        obs_batch = []
-        for agent_id in range(env.num_agents):
-            flat_obs = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
-            obs_batch.append(flat_obs)               # Prepare input for each agent
+    # === Training configuration ===
+    total_iterations = generations                      # Total training episodes/generations
+    log_interval = 100                                  # Log and render output every 100 iterations
 
-        actions, log_probs = agent.select_action(obs_batch)  # Select action and record log-probabilities
-        next_obs, rewards, done, _ = env.step(actions)       # Take a step in the environment
+    # === Begin MAPPO training loop ===
+    for iteration in range(1, total_iterations + 1):
+        obs_raw = env.reset()                            # Reset the environment
+        trajectories = []                                # To store trajectory data for MAPPO update
 
-        # Store transition data for policy update
-        trajectories.append({
-            'obs': obs_batch,
-            'actions': actions,
-            'log_probs': log_probs,
-            'rewards': rewards
-        })
+        # Run a fixed number of steps per episode
+        for step in range(10):
+            obs_batch = []
+            for agent_id in range(env.num_agents):
+                flat_obs = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
+                obs_batch.append(flat_obs)               # Prepare input for each agent
 
-        obs_raw = next_obs
+            actions, log_probs = agent.select_action(obs_batch)  # Select action and record log-probabilities
+            next_obs, rewards, done, _ = env.step(actions)       # Take a step in the environment
 
-    # After trajectory collection, update MAPPO networks (actor and critic)
-    agent.update(trajectories)
+            # Store transition data for policy update
+            trajectories.append({
+                'obs': obs_batch,
+                'actions': actions,
+                'log_probs': log_probs,
+                'rewards': rewards
+            })
 
-    # Logging and optional visualization every log_interval iterations
-    if iteration % log_interval == 0:
-        print(f"\n========== Generation {iteration} ==========")
-        env.render()  # Show the current grid (tribe positions, etc.)
+            obs_raw = next_obs
 
-# === Save the trained model parameters ===
-import os
+        # After trajectory collection, update MAPPO networks (actor and critic)
+        agent.update(trajectories)
 
-save_dir = "trained_models"
-os.makedirs(save_dir, exist_ok=True)  # Create directory if it doesn't exist
+        # Logging and optional visualization every log_interval iterations
+        if iteration % log_interval == 0:
+            print(f"\n========== Generation {iteration} ==========")
+            env.render()  # Show the current grid (tribe positions, etc.)
 
-# Save each actor network (one per agent) and the shared critic network
-for i, actor in enumerate(agent.actors):
-    torch.save(actor.state_dict(), os.path.join(save_dir, f"actor_{i}.pth"))
-torch.save(agent.critic.state_dict(), os.path.join(save_dir, "critic.pth"))
+    # === Save the trained model parameters ===
+    import os
 
-print("Models saved to 'trained_models/'")
+    save_dir = "trained_models"
+    os.makedirs(save_dir, exist_ok=True)  # Create directory if it doesn't exist
+
+    # Save each actor network (one per agent) and the shared critic network
+    for i, actor in enumerate(agent.actors):
+        torch.save(actor.state_dict(), os.path.join(save_dir, f"actor_{i}.pth"))
+    torch.save(agent.critic.state_dict(), os.path.join(save_dir, "critic.pth"))
+
+    print("Models saved to 'trained_models/'")
+    return agent, env
+
+if __name__ == "__main__":
+        trained_agent, final_env = train_mappo(
+        rows=5,
+        cols=5,  
+        generations=1000,  
+        num_tribes=3,  
+        log_interval=100  
+    )

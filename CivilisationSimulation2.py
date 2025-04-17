@@ -29,7 +29,7 @@ class CivilisationSimulation:
         placed = 0
         while placed < self.num_tribes:
             i, j = random.randint(0, self.rows - 1), random.randint(0, self.cols - 1)
-            if self.grid[i][j].is_empty():    #arbitrary starting values
+            if self.grid[i][j].isEmpty():    #arbitrary starting values
                 self.grid[i][j].population = 2
                 self.grid[i][j].food = 10.0
                 self.grid[i][j].tribe = placed + 1
@@ -56,7 +56,7 @@ class CivilisationSimulation:
                         actions.append("grow")
                     if cell.food >= 5 and cell.population >= 4:
                         for ni, nj in self.neighbors(i, j):
-                            if self.grid[ni][nj].is_empty():
+                            if self.grid[ni][nj].isEmpty():
                                 actions.append("expand")
                                 break
                     actions.append("gather")  # Always can gather
@@ -65,7 +65,7 @@ class CivilisationSimulation:
 
                     # Perform chosen action
                     if action == "gather":   #gather food (diminishing returns)
-                        food_gained = cell.get_efficiency()
+                        food_gained = cell.getEfficiency()
                         cell.food += food_gained
 
                     elif action == "grow":   #inc. population for arbitrary food value
@@ -76,7 +76,7 @@ class CivilisationSimulation:
                     elif action == "expand":  #expand to new cell- arbitrary conditions
                         for ni, nj in self.neighbors(i, j):
                             neighbor = self.grid[ni][nj]
-                            if neighbor.is_empty():
+                            if neighbor.isEmpty():
                                 new_grid[ni][nj].population = 2
                                 new_grid[ni][nj].food = 5.0
                                 new_grid[ni][nj].tribe = cell.tribe
@@ -97,7 +97,7 @@ class CivilisationSimulation:
                     if cell.population <= 0:
                         continue  # Cell dies off
 
-                    if new_grid[i][j].is_empty():
+                    if new_grid[i][j].isEmpty():
                         new_grid[i][j].population = cell.population
                         new_grid[i][j].food = cell.food
                         new_grid[i][j].tribe = cell.tribe
@@ -123,7 +123,7 @@ class CivilisationSimulation:
                 if cell.population > 0:
                     print(
                         f"({i},{j}) Tribe {cell.tribe} | Pop: {cell.population} | "
-                        f"Food: {round(cell.food, 2)} | Eff: {round(cell.get_efficiency(), 2)}"
+                        f"Food: {round(cell.food, 2)} | Eff: {round(cell.getEfficiency(), 2)}"
                     )
 
     def printStats(self):
@@ -148,7 +148,7 @@ class CivilisationSimulation:
             self.printGrid()
             self.printDebugInfo()
             self.printStats()
-            time.sleep(0.1)
+            time.sleep(1)
 
 class GameController:
     @staticmethod
