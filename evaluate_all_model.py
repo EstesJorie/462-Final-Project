@@ -122,7 +122,7 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
     # === Plot smoothed results ===
     sm = lambda x: smooth(x)
     plt.style.use("seaborn-v0_8-darkgrid")
-    plt.figure(figsize=(10, 8), dpi=300)
+    plt.figure(figsize=(18, 9), dpi=300)
 
     # --- Left: Population and Food ---
     plt.subplot(1, 2, 1)

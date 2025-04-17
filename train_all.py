@@ -14,14 +14,14 @@ TEST_CONFIG = {
 def getModelSelection():
     """
     Returns:
-        bool: True if TEST_MODE, False if TRAINING_MODE
+        bool: True if TEST_MODE, False if USER_MODE
     """ 
     while True:
           print(f"Select mode:\n")
           print("1. TEST MODE (Uses preset values)\n")
-          print("2. TRAINING MODE (Input values)\n")
+          print("2. USER MODE (Input values)\n")
           print("q. Shows TEST_CONFIG\n")
-          print("Enter '1' for TEST MODE, '2' for TRAINING MODE, or 'q' to see TEST CONFIG.\n")
+          print("Enter '1' for TEST MODE, '2' for USER MODE, or 'q' to see TEST CONFIG.\n")
           choice = input("Enter choice: ").strip().lower()
           if choice in ['1', '2']:
                return choice == '1' # if choice = 1, then TRUE thus TEST_MODE = True
