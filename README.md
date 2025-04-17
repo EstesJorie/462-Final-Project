@@ -83,12 +83,10 @@ The script generates plots comparing:
 Run one of the following scripts to train the respective agent:
 
 ```bash
-python train_mappo.py
-python train_qmix.py
-python train_hi_mappo.py
+python train_all.py
 ```
 
-The scripts will prompt for grid size, number of training generations, and number of tribes.
+The script can be configured to 
 
 Model save directories:
 - `trained_models/` (MAPPO)

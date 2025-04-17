@@ -25,9 +25,10 @@ def train_qmix(rows=None, cols=None, generations=None, num_tribes=None, log_inte
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
-    torch.cuda.manual_seed_all(SEED)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    if torch.cuda.is_available():   
+        torch.cuda.manual_seed_all(SEED)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     # === Initialize user configuration via GameController ===
     if rows is None or cols is None or generations is None or num_tribes is None:
