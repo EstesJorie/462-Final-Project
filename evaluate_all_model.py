@@ -1,6 +1,7 @@
 import torch
 import random
 import matplotlib.pyplot as plt
+import seaborn as sns
 import os
 import pandas as pd
 import numpy as np
@@ -108,9 +109,9 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         hi_cells.append(sum(count_tribe_cells(hi_env.sim.grid)))
 
         # === Random Strategy ===
-        sim = CivilizationSimulation(rows, cols, num_tribes)
+        sim = CivilisationSimulation(rows, cols, num_tribes)
         for _ in range(10):
-            sim.take_turn()
+            sim.takeTurn()
         rand_pops.append(sum(cell.population for row in sim.grid for cell in row if cell.tribe))
         rand_foods.append(sum(cell.food for row in sim.grid for cell in row if cell.tribe))
         rand_cells.append(sum(count_tribe_cells(sim.grid)))
@@ -120,7 +121,8 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
 
     # === Plot smoothed results ===
     sm = lambda x: smooth(x)
-    plt.figure(figsize=(12, 6))
+    plt.style.use("seaborn-v0_8-darkgrid")
+    plt.figure(figsize=(10, 8), dpi=300)
 
     # --- Left: Population and Food ---
     plt.subplot(1, 2, 1)
@@ -151,7 +153,13 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
     plt.grid(True)
 
     plt.tight_layout()
-    plt.savefig("evaluate_all_model_smoothed.png")
+    plt.savefig("evaluate_all_model_smoothed.png",
+                dpi=300,
+                bbox_inches="tight",
+                facecolor="white",
+                transparent=False,
+                edgecolor="none"
+                )
     plt.show()
 
 # === Entry Point ===

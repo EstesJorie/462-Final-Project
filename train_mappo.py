@@ -24,15 +24,18 @@ def train_mappo(rows=None, cols=None, generations=None, num_tribes=None, log_int
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
-    torch.cuda.manual_seed_all(SEED)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    if torch.cuda.is_available():   
+        torch.cuda.manual_seed_all(SEED)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     # === Get user-defined simulation parameters via controller UI ===
-    controller = GameController()
-    rows, cols = controller.getValidDimensions()         # Get valid grid dimensions from user
-    generations = controller.getValidGenerations()       # Get number of generations (training iterations)
-    num_tribes = controller.getValidTribeCount()         # Get number of tribes (agents)
+    if rows is None or cols is None or generations is None or num_tribes is None:
+        controller = GameController()
+        rows = rows or controller.getValidDimensions()[0] # Get valid grid dimensions from user
+        cols = cols or controller.getValidDimensions()[1] # Get number of generations (training iterations)
+        generations = generations or controller.getValidGenerations()
+        num_tribes = num_tribes or controller.getValidTribeCount() # Get number of tribes (agents)
 
     # === Initialize environment and MAPPO agent ===
     env = CivilizationEnv_MAPPO(rows=rows, cols=cols, num_tribes=num_tribes)

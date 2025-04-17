@@ -4,6 +4,7 @@ from hi_mappo import HiMAPPOAgent                         # Hierarchical MAPPO a
 from civilization_env_hi_mappo import CivilizationEnv_HiMAPPO  # Environment compatible with Hi-MAPPO
 import random
 import numpy as np
+from GameController import GameController           
 
 def train_hi_mappo(rows=None, cols=None, generations=None, num_tribes=None, log_interval=100):
     """
@@ -21,14 +22,18 @@ def train_hi_mappo(rows=None, cols=None, generations=None, num_tribes=None, log_
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
-    torch.cuda.manual_seed_all(SEED)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    if torch.cuda.is_available():   
+        torch.cuda.manual_seed_all(SEED)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     # === Get user-defined simulation parameters ===
-    rows, cols = map(int, input("Enter no. of rows and columns: ").split())         # Grid size
-    num_generations = int(input("Enter number of generations: "))                   # Training iterations
-    num_tribes = int(input("Enter number of starting tribes: "))                    # Number of agents
+    if rows is None or cols is None or generations is None or num_tribes is None:
+        controller = GameController()
+        rows = rows or controller.getValidDimensions()[0] # Get valid grid dimensions from user
+        cols = cols or controller.getValidDimensions()[1] # Get number of generations (training iterations)
+        generations = generations or controller.getValidGenerations()
+        num_tribes = num_tribes or controller.getValidTribeCount() # Get number of tribes (agents)
 
     # === Initialize the Hi-MAPPO environment ===
     env = CivilizationEnv_HiMAPPO(rows=rows, cols=cols, num_tribes=num_tribes, seed=42)
@@ -41,7 +46,7 @@ def train_hi_mappo(rows=None, cols=None, generations=None, num_tribes=None, log_
     log_interval = 100              # How often to render the environment
 
     # === Main training loop ===
-    for gen in range(1, num_generations + 1):
+    for gen in range(1, generations + 1):
         # Reset environment and get initial observations
         obs_raw = env.reset()
         state = torch.tensor(env.get_global_state(), dtype=torch.float32)           # Global state

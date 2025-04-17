@@ -30,10 +30,12 @@ def train_qmix(rows=None, cols=None, generations=None, num_tribes=None, log_inte
     torch.backends.cudnn.benchmark = False
 
     # === Initialize user configuration via GameController ===
-    controller = GameController()
-    rows, cols = controller.getValidDimensions()        # Grid dimensions
-    generations = controller.getValidGenerations()      # Total number of training iterations
-    num_tribes = controller.getValidTribeCount()        # Number of tribes/agents
+    if rows is None or cols is None or generations is None or num_tribes is None:
+        controller = GameController()
+        rows = rows or controller.getValidDimensions()[0] # Get valid grid dimensions from user
+        cols = cols or controller.getValidDimensions()[1] # Get number of generations (training iterations)
+        generations = generations or controller.getValidGenerations()
+        num_tribes = num_tribes or controller.getValidTribeCount() # Get number of tribes (agents)
 
     # === Initialize environment and QMIX agent ===
     env = CivilizationEnv_QMIX(rows=rows, cols=cols, num_tribes=num_tribes)
