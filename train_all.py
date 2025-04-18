@@ -11,7 +11,7 @@ TEST_CONFIG = {
         'num_tribes': 3
     }
 
-def getModelSelection():
+def getModeSelection():
     """
     Returns:
         bool: True if TEST_MODE, False if USER_MODE
@@ -56,7 +56,7 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
     Raises:
         Exception: If training fails for any model
     """
-    TEST_MODE = getModelSelection()
+    TEST_MODE = getModeSelection()
 
     if TEST_MODE:
         rows = TEST_CONFIG['rows']
