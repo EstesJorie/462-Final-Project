@@ -81,7 +81,7 @@ The script generates plots comparing:
 
 ## 🏁 Training
 
-Run one of the following scripts to train the respective agent:
+Run the following script to train the agents:
 
 ```bash
 python train_all.py
