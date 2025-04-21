@@ -88,7 +88,7 @@ class CivilizationSimulation_ENV:
 
                     # Action 2: Attempt to expand into neighboring cells
                     elif action == 2:
-                        if cell.food >= 3 and cell.population >= 2:  # Relaxed expansion condition
+                        if cell.food >= 5 and cell.population >= 2:  # Relaxed expansion condition
                             for ni, nj in self.neighbors(i, j):
                                 if self.grid[ni][nj].is_empty():
                                     # Place a new cell for the tribe
