@@ -11,7 +11,7 @@ TEST_CONFIG = {
         'num_tribes': 3
     }
 
-def getModelSelection():
+def getModeSelection():
     """
     Returns:
         bool: True if TEST_MODE, False if USER_MODE
@@ -56,7 +56,7 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
     Raises:
         Exception: If training fails for any model
     """
-    TEST_MODE = getModelSelection()
+    TEST_MODE = getModeSelection()
 
     if TEST_MODE:
         rows = TEST_CONFIG['rows']
@@ -82,7 +82,7 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
             num_tribes=num_tribes
         )
         print("MAPPO training completed.\n")
-        time.sleep(2)
+        time.sleep(1)
 
         print("\n=== Training Hi-MAPPO ===\n")
         hi_mappo = train_hi_mappo(
@@ -92,7 +92,7 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
             num_tribes=num_tribes
         )
         print("Hi-MAPPO training completed.\n")
-        time.sleep(2)
+        time.sleep(1))
 
         print("\n=== Training QMIX ===\n")
         qmix = train_qmix(
@@ -102,7 +102,7 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
             num_tribes=num_tribes
         )
         print("QMIX training completed.\n")
-        time.sleep(2)
+        time.sleep(1)
 
         print("\n=== All models trained successfully! ===\n")
         return mappo, hi_mappo, qmix
