@@ -2,14 +2,26 @@ from train_hi_mappo import train_hi_mappo
 from train_qmix import train_qmix
 from train_mappo import train_mappo
 from GameController import GameController
+from enum import Enum, auto
+
+import logging
+import json 
+import os
 import time
 
 TEST_CONFIG = {
-        'rows': 5,
-        'cols': 5,
+        'rows': 10,
+        'cols': 10,
         'generations': 1000,
-        'num_tribes': 3
+        'num_tribes': 5
     }
+
+logging.basicConfig(filename= 'train_all.log',
+                    filemode = 'w',
+                    format = '%(asctime)s - %(levelname)s - %(message)s',
+                    level = logging.INFO,
+                    datefmt='%Y-%m-%d %H:%M:%S')
+
 
 def getModeSelection():
     """
@@ -24,11 +36,13 @@ def getModeSelection():
           print("Enter '1' for TEST MODE, '2' for USER MODE, or 'q' to see TEST CONFIG.\n")
           choice = input("Enter choice: ").strip().lower()
           if choice in ['1', '2']:
+               logging.info(f"User selected {choice} mode.")
                return choice == '1' # if choice = 1, then TRUE thus TEST_MODE = True
           elif choice == 'q':
                print(f"{TEST_CONFIG}\n")
                print("Do you want to update the TEST_CONFIG values? (y/n)\n")
                updatedChoice = input("Enter choice: ").strip().lower()
+               logging.info(f"User selected {updatedChoice} to update TEST_CONFIG.")
                if updatedChoice == 'y':
                     print("Updating TEST_CONFIG values...\n")
                     rows = int(input("Enter number of rows: "))
@@ -39,6 +53,8 @@ def getModeSelection():
                     TEST_CONFIG['cols'] = cols
                     TEST_CONFIG['generations'] = generations
                     TEST_CONFIG['num_tribes'] = num_tribes
+                    logging.info(f"Updated TEST_CONFIG: {TEST_CONFIG}")
+                    print(f"TEST_CONFIG updated to: {TEST_CONFIG}\n")
                continue
           raise ValueError("Invalid choice. Please enter 1, 2, or q.\n")
 
@@ -92,7 +108,7 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
             num_tribes=num_tribes
         )
         print("Hi-MAPPO training completed.\n")
-        time.sleep(1))
+        time.sleep(1)
 
         print("\n=== Training QMIX ===\n")
         qmix = train_qmix(
