@@ -90,7 +90,7 @@ def train_hi_mappo_no_mcts(rows=None, cols=None, generations=None, num_tribes=No
             print("Scores:", scores)
             pbar.set_postfix(loss=loss_value, scores=scores)
 
-    score_log_path = os.path.join(save_dir, "hi_mappo_score_no_mcts_log.csv")
+    score_log_path = os.path.join("hi_mappo_score_no_mcts_log.csv")
     with open(score_log_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Generation"] + [f"Tribe_{i+1}_Score" for i in range(num_tribes)])

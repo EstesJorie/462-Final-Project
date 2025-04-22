@@ -44,6 +44,7 @@ def getModeSelection():
           choice = input("Enter choice: ").strip().lower()
           if choice in ['1', '2']:
                logging.info(f"User selected {choice} mode.")
+               logging.info(f"TEST_CONFIG: {TEST_CONFIG}")
                return choice == '1' # if choice = 1, then TRUE thus TEST_MODE = True
           elif choice == 'q':
                print(f"{TEST_CONFIG}\n")
@@ -108,8 +109,7 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
         for name, train_fn in tqdm(models, desc="Training All Models", unit="model"):
             print(f"\n=== Training {name} ===\n")
             logging.info(f"Started training {name}.")
-            results[name] = train_fn()
-
+            
             start_time = time.time()  
             results[name] = train_fn()
             duration = time.time() - start_time  
