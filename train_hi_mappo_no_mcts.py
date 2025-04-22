@@ -1,6 +1,6 @@
 import torch
 import os
-from hi_mappo import HiMAPPOAgent                         # Hierarchical MAPPO agent
+from hi_mappo_no_mcts import HiMAPPOAgent                         # Hierarchical MAPPO agent
 from civilization_env_hi_mappo import CivilizationEnv_HiMAPPO  # Environment compatible with Hi-MAPPO
 import random
 import numpy as np
