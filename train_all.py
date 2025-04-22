@@ -14,7 +14,7 @@ TEST_CONFIG = {
 def getModeSelection():
     """
     Returns:
-        bool: True if TEST_MODE, False if USER_MODE
+        bool: True if TEST_MODE, False if USER_MODE_
     """ 
     while True:
           print(f"Select mode:\n")
