@@ -1,0 +1,66 @@
+from mappo import MAPPOAgent
+from hi_mappo import HiMAPPOAgent
+from qmix import QMIXAgent
+from mixedAgentSimulator import MixedAgentSimulator
+import torch
+
+rows, cols = 10, 10
+obs_dim = rows * cols * 3
+act_dim = 3
+
+# === Load MAPPO Agent ===
+mappo = MAPPOAgent(obs_dim=obs_dim, act_dim=act_dim, num_agents=1)
+mappo.actors[0].load_state_dict(torch.load("trained_models_mappo/actor_0.pth"))
+mappo.critic.load_state_dict(torch.load("trained_models_mappo/critic.pth"))
+
+# === Load Hi-MAPPO Agent ===
+himappo = HiMAPPOAgent(obs_dim=obs_dim, act_dim=3, num_agents=1, state_dim=obs_dim, goal_dim=3)
+himappo.workers[0].load_state_dict(torch.load("trained_models_hi_mappo/worker_0.pth"))
+himappo.manager.load_state_dict(torch.load("trained_models_hi_mappo/manager.pth"))
+
+# === Load QMIX Agent ===
+qmix = QMIXAgent(
+    obs_dim=300,
+    state_dim=300,
+    act_dim=3,
+    n_agents=5,          
+    hidden_dim=64,       
+    buffer_size=10000,
+    batch_size=64,
+    lr=1e-3,
+    gamma=0.99
+)
+qmix.agent_nets[0].load_state_dict(torch.load("trained_models_qmix/qmix_agent_0.pth"))
+qmix.mix_net.load_state_dict(torch.load("trained_models_qmix/qmix_mixer.pth"))
+
+class QMIXSingleAgentWrapper:
+    def __init__(self, qmix_agent):
+        self.agent = qmix_agent
+    def select_action(self, obs_batch, epsilon=0.0):
+        obs_list = [obs_batch[0] for _ in range(self.agent.n_agents)]
+        return self.agent.select_actions(obs_list, epsilon=epsilon)
+    
+class HiMAPPOWrapper:
+    def __init__(self, himappo_agent):
+        self.agent = himappo_agent
+        self.current_goal = 0
+    def select_action(self, obs_batch):
+        return self.agent.select_actions(obs_batch, goal_ids=[self.current_goal])
+        
+qmixWrapped = QMIXSingleAgentWrapper(qmix)
+himappoWrapped = HiMAPPOWrapper(himappo)
+
+agents = [mappo, himappoWrapped, qmixWrapped]
+agent_names = ["MAPPO", "HiMAPPO", "QMIX"]
+
+sim = MixedAgentSimulator(
+    agents=agents,
+    agent_names=agent_names,
+    rows=rows,
+    cols=cols,
+    num_episodes=50,
+    log_interval=10
+)
+
+sim.run(stepsPerEp=10, render=True, output_csv="mixed_agent_results.csv")
+sim.env.renderHeatmap(sPath="logs/final_territory_heatmap.png")

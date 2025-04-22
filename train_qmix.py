@@ -22,7 +22,7 @@ def train_qmix(rows, cols, num_generations, num_tribes, seed=7, log_interval=100
     # Environment and Agent Setup
     # =======================================
     env = CivilizationEnv_QMIX(rows=rows, cols=cols, num_tribes=num_tribes)
-    obs_dim = rows * cols * 3
+    obs_dim = 300
     state_dim = obs_dim
     act_dim = 3
     agent = QMIXAgent(obs_dim, state_dim, act_dim, n_agents=num_tribes)

@@ -1,7 +1,7 @@
 import torch
 import os
 from hi_mappo_no_mcts import HiMAPPOAgent                         # Hierarchical MAPPO agent
-from civilization_env_hi_mappo import CivilizationEnv_HiMAPPO  # Environment compatible with Hi-MAPPO
+from civilization_env_hi_mappo_no_mcts import CivilizationEnv_HiMAPPO  # Environment compatible with Hi-MAPPO
 import random
 import numpy as np
 import csv
@@ -79,12 +79,12 @@ def train_hi_mappo_no_mcts(rows=None, cols=None, generations=None, num_tribes=No
 
         # === Update high-level and low-level networks ===
         loss = agent.update([traj])
-        loss_value = loss if isinstance(loss, (float, int)) else loss.item()
+        loss_value = loss if isinstance(loss, (float, int)) else (loss.item() if loss is not None else 0.0)
 
         if gen % log_interval == 0:
             print(f"\n===== Generation {gen} =====")
             env.render()
-            scores = env.compute_final_scores()
+            scores = env._compute_rewards()
             score_log.append((gen, scores))
             print("Loss:", loss_value)
             print("Scores:", scores)

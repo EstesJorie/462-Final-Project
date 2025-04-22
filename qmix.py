@@ -86,8 +86,8 @@ class QMIXAgent:
         self.target_agent_nets = [AgentNet(obs_dim, hidden_dim, act_dim) for _ in range(n_agents)]
 
         # Initialize online and target mixer networks
-        self.mix_net = MixerNet(n_agents, state_dim)
-        self.target_mix_net = MixerNet(n_agents, state_dim)
+        self.mix_net = MixerNet(n_agents, state_dim, hidden_dim=160)
+        self.target_mix_net = MixerNet(n_agents, state_dim, hidden_dim=160)
 
         # Sync target networks
         for i in range(n_agents):

@@ -23,7 +23,7 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
     # Initialize Environment and Agent
     # ========================================================
     env = CivilizationEnv_HiMAPPO(rows=rows, cols=cols, num_tribes=num_tribes, seed=42)
-    obs_dim = rows * cols * 3
+    obs_dim = 300
     state_dim = obs_dim
     goal_dim = 3
     act_dim = 3

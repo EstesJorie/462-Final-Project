@@ -12,7 +12,8 @@ from civilization_env_hi_mappo import CivilizationEnv_HiMAPPO
 from mappo import MAPPOAgent
 from qmix import QMIXAgent
 from hi_mappo import HiMAPPOAgent
-from civilisation_simulation_2 import CivilizationSimulation  # Used for random baseline
+from hi_mappo_no_mcts import HiMAPPOAgent as HiMAPPOAgent_no_mcts
+from CivilisationSimulation2 import CivilisationSimulation  # Used for random baseline
 
 # ======================================
 # Seed for Reproducibility
@@ -69,11 +70,18 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         worker.load_state_dict(torch.load(os.path.join("trained_models_hi_mappo", f"worker_{i}.pth")))
     hi_agent.manager.load_state_dict(torch.load(os.path.join("trained_models_hi_mappo", "manager.pth")))
 
+    # === Load Trained Hi-MAPPO No MCTS ===
+    hi_env_no_mcts = CivilizationEnv_HiMAPPO(rows, cols, num_tribes)
+    hi_agent_no_mcts = HiMAPPOAgent_no_mcts(obs_dim, obs_dim, goal_dim, act_dim, num_tribes)
+    for i, worker in enumerate(hi_agent_no_mcts.workers):
+        worker.load_state_dict(torch.load(os.path.join("trained_models_hi_mappo_no_mcts", f"worker_{i}.pth")))
+    hi_agent_no_mcts.manager.load_state_dict(torch.load(os.path.join("trained_models_hi_mappo_no_mcts", "manager.pth")))
+
     # === Logs for all strategies ===
-    mappo_pops, qmix_pops, hi_pops, rand_pops = [], [], [], []
-    mappo_foods, qmix_foods, hi_foods, rand_foods = [], [], [], []
-    mappo_cells, qmix_cells, hi_cells, rand_cells = [], [], [], []
-    mappo_scores, qmix_scores, hi_scores, rand_scores = [], [], [], []
+    mappo_pops, qmix_pops, hi_pops, hi_no_mcts_pops, rand_pops = [], [], [], [], []
+    mappo_foods, qmix_foods, hi_foods, hi_no_mcts_foods, rand_foods = [], [], [], [], []
+    mappo_cells, qmix_cells, hi_cells, hi_no_mcts_cells, rand_cells = [], [], [], [], []
+    mappo_scores, qmix_scores, hi_scores, hi_no_mcts_scores, rand_scores = [], [], [], [], []
 
     # ======================================
     # Evaluation Loop
@@ -118,10 +126,23 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         hi_foods.append(sum(cell.food for row in hi_env.sim.grid for cell in row if cell.tribe))
         hi_cells.append(sum(count_tribe_cells(hi_env.sim.grid)))
 
-        # === Random Strategy Evaluation ===
-        sim = CivilizationSimulation(rows, cols, num_tribes)
+        # === Hi-MAPPO No MCTS Evaluation ===
+        obs_raw = hi_env_no_mcts.reset()
+        state = torch.tensor(hi_env_no_mcts.get_global_state(), dtype=torch.float32)
+        obs_batch = [torch.tensor(o, dtype=torch.float32) for o in hi_env_no_mcts.get_agent_obs()]
+        goals, _ = hi_agent_no_mcts.select_goals(state)
+        actions, _ = hi_agent_no_mcts.select_actions(obs_batch, goals)
         for _ in range(10):
-            sim.take_turn()
+            obs_raw, _, _, _ = hi_env_no_mcts.step(actions)
+        hi_no_mcts_scores.append(sum(hi_env_no_mcts.compute_final_scores()))
+        hi_no_mcts_pops.append(sum(cell.population for row in hi_env_no_mcts.sim.grid for cell in row if cell.tribe))
+        hi_no_mcts_foods.append(sum(cell.food for row in hi_env_no_mcts.sim.grid for cell in row if cell.tribe))
+        hi_no_mcts_cells.append(sum(count_tribe_cells(hi_env_no_mcts.sim.grid)))
+
+        # === Random Strategy Evaluation ===
+        sim = CivilisationSimulation(rows, cols, num_tribes)
+        for _ in range(10):
+            sim.takeTurn()
         rand_score = 0
         for tribe in range(1, num_tribes + 1):
             territory = sum(cell.tribe == tribe for row in sim.grid for cell in row)
@@ -150,7 +171,8 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
 
     axs[0, 0].plot(sm(mappo_pops), label="MAPPO", linewidth=2)
     axs[0, 0].plot(sm(qmix_pops), label="QMIX", linewidth=2)
-    axs[0, 0].plot(sm(hi_pops), label="Hi-MAPPO", linewidth=2)
+    axs[0, 0].plot(sm(hi_pops), label="Hi-MAPPO+MCTS", linewidth=2)
+    axs[0, 0].plot(sm(hi_no_mcts_pops), label="Hi-MAPPO", linewidth=2)
     axs[0, 0].plot(sm(rand_pops), label="Random", linewidth=2)
     axs[0, 0].set_title("Total Population")
     axs[0, 0].legend()
@@ -158,7 +180,8 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
 
     axs[0, 1].plot(sm(mappo_foods), label="MAPPO", linewidth=2)
     axs[0, 1].plot(sm(qmix_foods), label="QMIX", linewidth=2)
-    axs[0, 1].plot(sm(hi_foods), label="Hi-MAPPO", linewidth=2)
+    axs[0, 1].plot(sm(hi_foods), label="Hi-MAPPO+MCTS", linewidth=2)
+    axs[0, 1].plot(sm(hi_no_mcts_foods), label="Hi-MAPPO", linewidth=2)
     axs[0, 1].plot(sm(rand_foods), label="Random", linewidth=2)
     axs[0, 1].set_title("Total Food")
     axs[0, 1].legend()
@@ -166,7 +189,8 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
 
     axs[1, 0].plot(sm(mappo_scores), label="MAPPO", linewidth=2)
     axs[1, 0].plot(sm(qmix_scores), label="QMIX", linewidth=2)
-    axs[1, 0].plot(sm(hi_scores), label="Hi-MAPPO", linewidth=2)
+    axs[1, 0].plot(sm(hi_scores), label="Hi-MAPPO+MCTS", linewidth=2)
+    axs[1, 0].plot(sm(hi_no_mcts_scores), label="Hi-MAPPO", linewidth=2)
     axs[1, 0].plot(sm(rand_scores), label="Random", linewidth=2)
     axs[1, 0].set_title("Final Score")
     axs[1, 0].legend()
@@ -174,14 +198,15 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
 
     axs[1, 1].plot(sm(mappo_cells), label="MAPPO", linewidth=2)
     axs[1, 1].plot(sm(qmix_cells), label="QMIX", linewidth=2)
-    axs[1, 1].plot(sm(hi_cells), label="Hi-MAPPO", linewidth=2)
+    axs[1, 1].plot(sm(hi_cells), label="Hi-MAPPO+MCTS", linewidth=2)
+    axs[1, 1].plot(sm(hi_no_mcts_cells), label="Hi-MAPPO", linewidth=2)
     axs[1, 1].plot(sm(rand_cells), label="Random", linewidth=2)
     axs[1, 1].set_title("Occupied Cells")
     axs[1, 1].legend()
     axs[1, 1].grid(True)
 
     plt.tight_layout()
-    plt.savefig("evaluate_all_model_4plots.png")
+    plt.savefig("evaluate_all_model_plotsNew.png")
     plt.show()
 
 # ======================================

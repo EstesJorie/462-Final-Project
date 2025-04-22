@@ -37,7 +37,7 @@ class HighLevelPolicy(nn.Module):
 class LowLevelPolicy(nn.Module):
     def __init__(self, obs_dim, goal_dim, act_dim, hidden_dim=64):
         super().__init__()
-        # The input is a concatenation of observation and goal one-hot encoding
+        # Ensure this matches the checkpoint's expected input size
         self.policy = nn.Sequential(
             nn.Linear(obs_dim + goal_dim, hidden_dim),
             nn.ReLU(),
@@ -56,14 +56,15 @@ class LowLevelPolicy(nn.Module):
 # ======================================
 class HiMAPPOAgent:
     def __init__(self, state_dim, obs_dim, goal_dim, act_dim, num_agents, hidden_dim=64, lr=3e-4):
+        # Initialize parameters
         self.num_agents = num_agents
         self.goal_dim = goal_dim
 
-        # Manager policy (shared across all agents)
+        # Initialize the high-level manager policy
         self.manager = HighLevelPolicy(state_dim, goal_dim, hidden_dim)
         self.manager_optim = optim.Adam(self.manager.parameters(), lr=lr)
 
-        # Create one worker policy and optimizer per agent
+        # Create worker policies and optimizers for each agent
         self.workers = [LowLevelPolicy(obs_dim, goal_dim, act_dim, hidden_dim) for _ in range(num_agents)]
         self.worker_optims = [optim.Adam(w.parameters(), lr=lr) for w in self.workers]
 
