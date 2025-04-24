@@ -64,56 +64,80 @@ class CivilizationEnv_HiMAPPO:
     # score_reward = delta in final score from previous step
     # mixed_reward = local_reward + λ × score_reward
     # =====================================================
-    def _compute_rewards(self, lambda_score=0.1):
-        local_rewards = [0] * self.num_agents
-        prev_cells = self.last_cells if hasattr(self, 'last_cells') else [0] * self.num_agents
+    def _compute_rewards(self, lambda_score=0.3):
+        # Initialize local rewards list for each agent (tribe)
+        local_rewards = [0.0] * self.num_agents
 
+        # Traverse each grid cell to calculate local rewards
         for i in range(self.rows):
             for j in range(self.cols):
                 cell = self.sim.grid[i][j]
                 if cell.tribe:
-                    idx = cell.tribe - 1
-                    # Reward components: population, food, and presence bonus
-                    local_rewards[idx] += 0.5 * cell.population + 0.2 * cell.food + 2.0
+                    idx = cell.tribe - 1  # Tribe indices are 1-based, list is 0-based
+                    # Compute local reward for this cell:
+                    # - 0.5 × population: scaled contribution of population
+                    # - 0.05 × food^0.8: diminishing return for food
+                    # - +2.0: survival bonus for simply existing
+                    local_rewards[idx] += 0.5 * cell.population + 0.05 * (cell.food ** 0.8) + 2.0
 
-        # Score reward = improvement in final score since last step
+        # Get the expansion reward for each tribe (precomputed in environment)
+        expansion_bonus = self.sim.expand_reward  # A list of expansion rewards per agent
+
+        # Compute score reward as change in final score from last recorded scores
         current_scores = self.compute_final_scores()
         score_rewards = [curr - prev for curr, prev in zip(current_scores, self.last_scores)]
-        self.last_scores = current_scores
+        self.last_scores = current_scores  # Update last_scores to current for next step
 
-        # Combine both rewards
-        mixed_rewards = [l + lambda_score * s for l, s in zip(local_rewards, score_rewards)]
+        # Combine local, expansion, and scaled score rewards
+        mixed_rewards = [
+            local + expand + lambda_score * score
+            for local, expand, score in zip(local_rewards, expansion_bonus, score_rewards)
+        ]
+
         return mixed_rewards
-
-    # =====================================================
-    # Compute final performance score for each tribe
-    # Combines: territory control, population, and food ratio
-    # =====================================================
-    def compute_final_scores(self, alpha=0.4, beta=0.3, gamma=0.3, H=5, food_per_person=0.2):
+    
+    # =======================================
+    # Compute final civilization score per tribe
+    # Score = α × territory + β × population + γ × food efficiency
+    # =======================================
+    def compute_final_scores(self, H=5, food_per_person=0.2):
         total_cells = self.rows * self.cols
         max_population_per_cell = 10
         scores = []
 
+        # Loop over each tribe to calculate its final score
         for tribe_id in range(1, self.num_agents + 1):
             territory = 0
             population = 0
             food = 0
 
+            # Aggregate data from all cells belonging to the current tribe
             for i in range(self.rows):
                 for j in range(self.cols):
                     cell = self.sim.grid[i][j]
                     if cell.tribe == tribe_id:
-                        territory += 1
+                        territory += 1  # Count of cells occupied by the tribe
                         population += cell.population
                         food += cell.food
 
-            territory_score = (territory / total_cells) * 100
-            population_score = (population / (max_population_per_cell * total_cells)) * 100
-            food_needed = population * food_per_person * H
-            food_score = min((food / food_needed), 1.0) * 100 if food_needed > 0 else 0
+            # --- Step 1: Raw score components ---
+            territory_score = territory / total_cells  # Normalized by total grid area
+            population_score = population / (
+                        max_population_per_cell * total_cells)  # Normalized by max possible population
+            food_needed = population * food_per_person * H  # Total food needed for survival
+            food_score = min((food / food_needed), 1.0) if food_needed > 0 else 0  # Cap efficiency at 1.0
 
-            final_score = alpha * territory_score + beta * population_score + gamma * food_score
-            scores.append(final_score)
+            # --- Step 2: Normalization ---
+            # Each component is already within [0, 1] range via direct normalization
+            norm_territory = territory_score
+            norm_population = population_score
+            norm_food = food_score
+
+            # --- Step 3: Combine components equally to get final score ---
+            final_score = (norm_territory + norm_population + norm_food) / 3.0
+
+            # Scale to percentage format for readability
+            scores.append(final_score * 100)
 
         return scores
 

@@ -18,9 +18,7 @@ TEST_CONFIG = {
     }
 
 logFile = "train_all.log"
-if os.path.exists(logFile):
-    os.remove(logFile)  # Remove the old log file if it exists
-else:
+if not os.path.exists(logFile):
     print(f"Log file '{logFile}' does not exist, creating a new one.\n")
 
 logging.basicConfig(filename= logFile,
