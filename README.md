@@ -9,7 +9,7 @@ This project simulates a grid-based civilization environment where multiple "tri
 
 Additionally, a random strategy baseline is included for performance comparison.
 
-> [!NOTE] To contribute to this repository please follow the steps below:
+> **Note:** To contribute to this repository, please follow the steps below:
 >
 > Fork the repository 
 > Clone the repository https://github.com/[USERNAME]/[REPO_FORK_NAME].git
