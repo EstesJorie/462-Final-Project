@@ -3,37 +3,31 @@ from civilisation_simulation_env import CivilizationSimulation_ENV
 
 SEED = 7  # Fixed random seed for reproducibility
 
-# ======================================================
-# Environment Wrapper for QMIX
-# Provides step/reset interface and reward shaping
-# for multi-agent training using value decomposition
-# ======================================================
 class CivilizationEnv_QMIX:
     def __init__(self, rows=5, cols=5, num_tribes=3):
         self.rows = rows
         self.cols = cols
         self.num_tribes = num_tribes
 
-        # Initialize core simulation
         self.sim = CivilizationSimulation_ENV(rows, cols, num_tribes, seed=SEED)
+        self.num_agents = num_tribes
+        self.action_space = [3] * self.num_agents
+        self.observation_space = (rows, cols, 3)
+        self.last_scores = [0] * self.num_agents
 
-        self.num_agents = num_tribes                     # One agent per tribe
-        self.action_space = [3] * self.num_agents        # Each agent has 3 discrete actions
-        self.observation_space = (rows, cols, 3)         # [population, food, tribe_id]
-        self.last_scores = [0] * self.num_agents         # Used for reward shaping
+        # 动态奖励权重初始化
+        self.weight_pop = 0.5
+        self.weight_food = 0.05
+        self.weight_survival = 2.0
+        self.lambda_score = 0.3
+        self.weight_expand = 1.0
+        self.last_avg_score = 0.0
 
-    # ======================================================
-    # Reset environment to initial state
-    # ======================================================
     def reset(self):
         self.sim = CivilizationSimulation_ENV(self.rows, self.cols, self.num_tribes)
         self.last_scores = [0] * self.num_agents
         return self._get_obs()
 
-    # ======================================================
-    # Extract grid-based observation from simulation
-    # Each cell returns [population, food, tribe_id]
-    # ======================================================
     def _get_obs(self):
         obs = np.zeros((self.rows, self.cols, 3))
         for i in range(self.rows):
@@ -42,125 +36,97 @@ class CivilizationEnv_QMIX:
                 obs[i][j] = [c.population, c.food, c.tribe if c.tribe else 0]
         return obs
 
-    # ======================================================
-    # Perform one simulation step with agent actions
-    # Returns: next_obs, reward, done=False, info={}
-    # ======================================================
     def step(self, actions):
-        self.sim.take_turn(actions)       # Advance environment
-        obs = self._get_obs()             # New observation
-        rewards = self._compute_rewards() # Get shaped rewards
-        done = False                      # No terminal condition
+        self.sim.take_turn(actions)
+        obs = self._get_obs()
+        rewards, current_scores = self._compute_rewards()
+        self._update_reward_weights(current_scores)
+        done = False
         return obs, rewards, done, {}
 
-    # ======================================================
-    # Compute mixed rewards for each tribe/agent
-    # Combines local reward (population/food) and score delta
-    # ======================================================
-    def _compute_rewards(self, lambda_score=0.1):
-        local_rewards = [0] * self.num_agents
+    def _compute_rewards(self):
+        local_rewards = [0.0] * self.num_agents
 
         for i in range(self.rows):
             for j in range(self.cols):
                 cell = self.sim.grid[i][j]
                 if cell.tribe:
                     idx = cell.tribe - 1
-                    # Reward components: population, food, and cell occupancy bonus
-                    local_rewards[idx] += 0.3 * cell.population + 0.2 * cell.food + 2.0
+                    food_term = min(cell.food, 10)
+                    local_rewards[idx] += (
+                        self.weight_pop * cell.population +
+                        self.weight_food * (food_term ** 0.8) +
+                        self.weight_survival
+                    )
 
-        current_scores = self.compute_final_scores()  # Get updated score
-        score_rewards = [c - l for c, l in zip(current_scores, self.last_scores)]
-        self.last_scores = current_scores
-
-        # Mixed reward: local + λ × score_delta
-        mixed_rewards = [l + lambda_score * s for l, s in zip(local_rewards, score_rewards)]
-        return mixed_rewards
-
-    # ======================================================
-    # Compute score based on territory, population, and food
-    # Used for reward shaping and monitoring
-    # ======================================================
-    def _compute_rewards(self, lambda_score=0.3):
-        # Initialize local rewards list for each agent (tribe)
-        local_rewards = [0.0] * self.num_agents
-
-        # Traverse each grid cell to calculate local rewards
-        for i in range(self.rows):
-            for j in range(self.cols):
-                cell = self.sim.grid[i][j]
-                if cell.tribe:
-                    idx = cell.tribe - 1  # Tribe indices are 1-based, list is 0-based
-                    # Compute local reward for this cell:
-                    # - 0.5 × population: scaled contribution of population
-                    # - 0.05 × food^0.8: diminishing return for food
-                    # - +2.0: survival bonus for simply existing
-                    local_rewards[idx] += 0.5 * cell.population + 0.05 * (cell.food ** 0.8) + 2.0
-
-        # Get the expansion reward for each tribe (precomputed in environment)
-        expansion_bonus = self.sim.expand_reward  # A list of expansion rewards per agent
-
-        # Compute score reward as change in final score from last recorded scores
+        expansion_bonus = self.sim.expand_reward
         current_scores = self.compute_final_scores()
         score_rewards = [curr - prev for curr, prev in zip(current_scores, self.last_scores)]
-        self.last_scores = current_scores  # Update last_scores to current for next step
+        self.last_scores = current_scores
 
-        # Combine local, expansion, and scaled score rewards
         mixed_rewards = [
-            local + expand + lambda_score * score
+            local + self.weight_expand * expand + self.lambda_score * score
             for local, expand, score in zip(local_rewards, expansion_bonus, score_rewards)
         ]
 
-        return mixed_rewards
-    
-    # =======================================
-    # Compute final civilization score per tribe
-    # Score = α × territory + β × population + γ × food efficiency
-    # =======================================
+        return mixed_rewards, current_scores
+
+    def _update_reward_weights(self, current_scores):
+        avg_score = sum(current_scores) / len(current_scores)
+        if avg_score > self.last_avg_score:
+            self.weight_pop += 0.01
+            self.weight_food += 0.05
+            self.weight_survival += 0.05
+            self.weight_expand += 0.02
+            self.lambda_score += 0.005
+        else:
+            self.weight_pop *= 0.99
+            self.weight_food *= 0.97
+            self.weight_survival *= 0.98
+            self.weight_expand *= 0.98
+            self.lambda_score *= 0.99
+        self.last_avg_score = avg_score
+
     def compute_final_scores(self, H=5, food_per_person=0.2):
         total_cells = self.rows * self.cols
         max_population_per_cell = 10
         scores = []
 
-        # Loop over each tribe to calculate its final score
         for tribe_id in range(1, self.num_agents + 1):
             territory = 0
             population = 0
             food = 0
 
-            # Aggregate data from all cells belonging to the current tribe
             for i in range(self.rows):
                 for j in range(self.cols):
                     cell = self.sim.grid[i][j]
                     if cell.tribe == tribe_id:
-                        territory += 1  # Count of cells occupied by the tribe
+                        territory += 1
                         population += cell.population
                         food += cell.food
 
-            # --- Step 1: Raw score components ---
-            territory_score = territory / total_cells  # Normalized by total grid area
-            population_score = population / (
-                        max_population_per_cell * total_cells)  # Normalized by max possible population
-            food_needed = population * food_per_person * H  # Total food needed for survival
-            food_score = min((food / food_needed), 1.0) if food_needed > 0 else 0  # Cap efficiency at 1.0
+            territory_score = territory / total_cells
+            population_score = population / (max_population_per_cell * total_cells)
+            food_needed = population * food_per_person * H
+            food_ratio = food / (food_needed + 1e-6)
 
-            # --- Step 2: Normalization ---
-            # Each component is already within [0, 1] range via direct normalization
-            norm_territory = territory_score
-            norm_population = population_score
-            norm_food = food_score
+            # 改进版得分：多余食物将被惩罚
+            if food_ratio >= 1.0:
+                food_score = 1.0 - 0.1 * (food_ratio - 1.0)
+                food_score = max(food_score, 0.0)
+            else:
+                food_score = food_ratio
 
-            # --- Step 3: Combine components equally to get final score ---
-            final_score = (norm_territory + norm_population + norm_food) / 3.0
-
-            # Scale to percentage format for readability
+            # 分数权重调整：食物只占 20%
+            final_score = (
+                    0.4 * territory_score +
+                    0.4 * population_score +
+                    0.2 * food_score
+            )
             scores.append(final_score * 100)
 
         return scores
 
-    # ======================================================
-    # Print grid state, tribe info, and final scores
-    # Useful for debugging and visualization
-    # ======================================================
     def render(self):
         self.sim.printGrid()
         self.sim.printDebugInfo()
