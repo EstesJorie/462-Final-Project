@@ -24,7 +24,7 @@ Additionally, a random strategy baseline is included for performance comparison.
 >
 > Wait for your request to be approved!
 >
-> * -- Previously existing branch names such as *[Main or Dev]* should not be used!
+> * Previously existing branch names such as *[Main or Dev]* should not be used!
 ---
 
 ## 📁 Project Structure

@@ -60,6 +60,16 @@ class HiMAPPOAgent:
         self.worker_optims = [optim.Adam(w.parameters(), lr=lr) for w in self.workers]
 
     def select_goals(self, state):
+        """
+        Sample abstract goals for each agent based on the global state.
+
+        - The manager outputs a probability distribution over goals.
+        - A goal is sampled for each agent independently.
+        - Also returns the log-probabilities for later PPO update.
+
+        Purpose:
+        Decouple high-level intention (goal selection) from low-level actions.
+        """
         probs = self.manager(state)
         dist = Categorical(probs)
         goals = [dist.sample() for _ in range(self.num_agents)]
@@ -67,6 +77,15 @@ class HiMAPPOAgent:
         return torch.stack(goals), torch.stack(logps)
 
     def select_actions(self, obs_batch, goal_ids):
+        """
+        Given agent observations and assigned goals, select actions.
+
+        - Each worker conditions its policy on (observation + one-hot goal).
+        - Workers act independently, based on the goal provided by the manager.
+
+        Purpose:
+        Introduce goal conditioning into low-level decision-making.
+        """
         actions = []
         logps = []
         for i in range(self.num_agents):
@@ -82,6 +101,23 @@ class HiMAPPOAgent:
         return actions, logps
 
     def update(self, trajs):
+        """
+        Perform policy updates for both manager and workers.
+
+        Manager Update:
+        - Use PPO clipped surrogate objective to improve goal selection.
+        - Add entropy bonus to encourage exploration of goals.
+
+        Worker Update:
+        - Supervised REINFORCE: workers maximize expected returns conditioned on goals.
+        - No value function, direct policy gradient based on returns.
+
+        Inputs:
+        - trajs: A list of trajectory dictionaries, each containing
+            'state', 'goal', 'logp_goal', 'obs', 'actions', 'rewards'
+        """
+
+        # --- Manager PPO Update ---
         states = torch.stack([t['state'] for t in trajs])
         goals = torch.stack([t['goal'] for t in trajs])
         log_probs = torch.stack([t['logp_goal'] for t in trajs])
@@ -90,38 +126,49 @@ class HiMAPPOAgent:
 
         dist = Categorical(self.manager(states))
         new_log_probs = dist.log_prob(goals[:, 0])
-        entropy = dist.entropy().mean()  # ✅ 加入 Manager entropy bonus
+
+        entropy = dist.entropy().mean()  # Add entropy regularization to promote goal diversity
+
         ratio = torch.exp(new_log_probs - log_probs[:, 0].detach())
 
         manager_loss = -torch.min(
             ratio * advantages,
-            torch.clamp(ratio, 0.8, 1.2) * advantages
+            torch.clamp(ratio, 0.8, 1.2) * advantages  # PPO clipping to stabilize updates
         ).mean()
 
-        manager_loss = manager_loss - 0.01 * entropy  # ✅ 加入 entropy 奖励项
+        manager_loss = manager_loss - 0.01 * entropy  # Entropy bonus
 
         self.manager_optim.zero_grad()
         manager_loss.backward()
         self.manager_optim.step()
 
+        # --- Worker Policy Updates ---
         total_worker_loss = 0
         for i in range(self.num_agents):
+            # Collect all observations and actions for agent i
             obs_i = torch.cat([torch.stack(t['obs'][i]) for t in trajs], dim=0)
             actions_i = torch.tensor([a for t in trajs for a in t['actions'][i]])
+
+            # Each action is associated with a goal during training
             goal_ids_i = torch.tensor([
                 t['goal'][i].item() for t in trajs for _ in range(len(t['actions'][i]))
             ])
             goal_onehots_i = torch.nn.functional.one_hot(goal_ids_i, self.goal_dim).float()
+
             probs = self.workers[i](obs_i, goal_onehots_i)
             dist = Categorical(probs)
             log_probs_i = dist.log_prob(actions_i)
+
             returns_i = torch.tensor([
                 np.mean(t['rewards']) for t in trajs for _ in range(len(t['actions'][i]))
             ])
+
             worker_loss = -(log_probs_i * (returns_i - returns_i.mean())).mean()
+
             self.worker_optims[i].zero_grad()
             worker_loss.backward()
             self.worker_optims[i].step()
+
             total_worker_loss += worker_loss.item()
 
         return manager_loss.item() + total_worker_loss / self.num_agents
