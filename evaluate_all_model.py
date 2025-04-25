@@ -9,6 +9,7 @@ import numpy as np
 from civilization_env_mappo import CivilizationEnv_MAPPO
 from civilization_env_qmix import CivilizationEnv_QMIX
 from civilization_env_hi_mappo import CivilizationEnv_HiMAPPO
+from civilization_env_hi_mappo_no_mcts import CivilizationEnv_HiMAPPO_NoMCTS
 from mappo import MAPPOAgent
 from qmix import QMIXAgent
 from hi_mappo import HiMAPPOAgent
