@@ -36,23 +36,25 @@ def train_mappo(rows, cols, generations, num_tribes, seed=7, log_interval=100, s
         obs_raw = env.reset()
         trajectories = []
 
-        for step in range(10):
-            obs_batch = [
-                torch.tensor(obs_raw.flatten(), dtype=torch.float32)
-                for _ in range(env.num_agents)
-            ]
+        for step in range(15):
+        obs_batch = []
+        for agent_id in range(env.num_agents):
+            flat_obs = torch.tensor(obs_raw.flatten(), dtype=torch.float32)  # Use full map as input
+            obs_batch.append(flat_obs)
 
-            actions, log_probs = agent.select_action(obs_batch)
-            next_obs, rewards, done, _ = env.step(actions)
+        # Agents select actions and get log probabilities
+        actions, log_probs = agent.select_action(obs_batch)
+        next_obs, rewards, done, _ = env.step(actions)
 
-            trajectories.append({
-                'obs': obs_batch,
-                'actions': actions,
-                'log_probs': log_probs,
-                'rewards': rewards
-            })
+        # Record transition for PPO update
+        trajectories.append({
+            'obs': obs_batch,
+            'actions': actions,
+            'log_probs': log_probs,
+            'rewards': rewards
+        })
 
-            obs_raw = next_obs
+        obs_raw = next_obs  # Move to next state
 
         # Update agent
         loss = agent.update(trajectories)

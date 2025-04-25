@@ -42,37 +42,46 @@ def train_qmix(rows, cols, num_generations, num_tribes, seed=7, log_interval=100
     pbar = tqdm(range(1, num_generations + 1), desc="Training QMIX", unit="gen")
     for iteration in pbar:
         obs_raw = env.reset()
-        state_raw = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
+            state_raw = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
 
-        for step in range(10):
-            obs_batch = preprocess_obs(obs_raw)
-            epsilon = max(0.05, 1 - iteration / 2000)
-            actions = agent.select_actions(obs_batch, epsilon=epsilon)
-            next_obs_raw, rewards, done, _ = env.step(actions)
-            next_state_raw = torch.tensor(next_obs_raw.flatten(), dtype=torch.float32)
-            next_obs_batch = preprocess_obs(next_obs_raw)
+            # Run an episode (fixed steps)
+            for step in range(30):
+                obs_batch = preprocess_obs(obs_raw)
 
-            agent.store_transition(obs_batch, state_raw, actions, rewards, next_obs_batch, next_state_raw)
+                # ε-greedy exploration schedule
+                epsilon = max(0.05, 1 - iteration / 2000)
 
-            obs_raw = next_obs_raw
-            state_raw = next_state_raw
+                # Agents choose actions
+                actions = agent.select_actions(obs_batch, epsilon=epsilon)
 
-        # Train from buffer
-        loss = agent.train()
-        loss_value = loss.item() if loss is not None else None
-        if loss_value is not None:
-            loss_log.append((iteration, loss_value))
+                # Environment executes actions
+                next_obs_raw, rewards, done, _ = env.step(actions)
+                next_state_raw = torch.tensor(next_obs_raw.flatten(), dtype=torch.float32)
+                next_obs_batch = preprocess_obs(next_obs_raw)
 
-        # Periodically update target networks
-        if iteration % 200 == 0:
-            agent.update_targets()
+                # Store transition in replay buffer
+                agent.store_transition(obs_batch, state_raw, actions, rewards, next_obs_batch, next_state_raw)
 
-        # Logging
-        if iteration % log_interval == 0:
-            print(f"\n========== Generation {iteration} ==========")
-            env.render()
-            scores = env.compute_final_scores()
-            score_log.append((iteration, scores))
+                # Update obs/state for next step
+                obs_raw = next_obs_raw
+                state_raw = next_state_raw
+
+            # Train from buffer
+            loss = agent.train()
+            loss_value = loss.item() if loss is not None else None
+            if loss_value is not None:
+                loss_log.append((iteration, loss_value))
+
+            # Periodically update target networks
+            if iteration % 200 == 0:
+                agent.update_targets()
+
+            # Log environment state and reward
+            if iteration % log_interval == 0:
+                print(f"\n========== Generation {iteration} ==========")
+                env.render()
+                scores = env.compute_final_scores()
+                score_log.append((iteration, scores))
             if loss_value is not None:
                 print("Loss:", loss_value)
             pbar.set_postfix(loss=loss_value, scores=scores)

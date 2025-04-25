@@ -30,34 +30,40 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
 
     agent = HiMAPPOAgent(state_dim, obs_dim, goal_dim, act_dim, num_tribes)
     score_log = []
+    log_interval = 100
 
     # ========================================================
     # Training Loop
     # ========================================================
     pbar = tqdm(range(1, num_generations + 1), desc="Training HI-MAPPO", unit="gen")
     for gen in pbar:
-        obs_raw = env.reset()
-        state = torch.tensor(env.get_global_state(), dtype=torch.float32)
+    env.reset()
+
+    state = torch.tensor(env.get_global_state(), dtype=torch.float32)
+    obs_batch = [torch.tensor(o, dtype=torch.float32) for o in env.get_agent_obs()]
+
+    # 🧠 只使用 Hi-MAPPO 选择目标（不使用 MCTS）
+    goal_ids, logp_goal = agent.select_goals(state)
+    env.last_goals = goal_ids.tolist()
+
+    traj = {
+        'state': state,
+        'obs': [[] for _ in range(num_tribes)],
+        'goal': goal_ids,
+        'logp_goal': logp_goal,
+        'actions': [[] for _ in range(num_tribes)],
+        'rewards': [[] for _ in range(num_tribes)]
+    }
+
+    for step in range(8):
         obs_batch = [torch.tensor(o, dtype=torch.float32) for o in env.get_agent_obs()]
-
-        use_mcts = gen <= 500
-        goal_ids, logp_goal = agent.select_goals(state, env=copy.deepcopy(env), use_mcts=use_mcts)
         actions, logp_actions = agent.select_actions(obs_batch, goal_ids)
+        _, rewards, _, _ = env.step(actions, goals=goal_ids.tolist())
 
-        env.last_scores = goal_ids.tolist()
-
-        traj = {
-            'state': state,
-            'obs': obs_batch,
-            'goal': goal_ids,
-            'logp_goal': logp_goal,
-            'actions': actions,
-            'rewards': []
-        }
-
-        for step in range(10):
-            next_obs_raw, rewards, done, _ = env.step(actions)
-            traj['rewards'].append(sum(rewards))
+        for i in range(num_tribes):
+            traj['obs'][i].append(obs_batch[i])
+            traj['actions'][i].append(actions[i])
+            traj['rewards'][i].append(rewards[i])
 
         loss = agent.update([traj])
         loss_value = loss if isinstance(loss, (float, int)) else loss.item()

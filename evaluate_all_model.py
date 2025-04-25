@@ -103,7 +103,7 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         # === QMIX Evaluation ===
         obs_raw = qmix_env.reset()
         state = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
-        for _ in range(10):
+        for _ in range(30):
             obs_batch = [state.clone().detach().float() for _ in range(num_tribes)]
             actions = qmix_agent.select_actions(obs_batch, epsilon=0.0)  # Greedy
             obs_raw, _, _, _ = qmix_env.step(actions)
@@ -116,11 +116,13 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         # === Hi-MAPPO Evaluation ===
         obs_raw = hi_env.reset()
         state = torch.tensor(hi_env.get_global_state(), dtype=torch.float32)
-        obs_batch = [torch.tensor(o, dtype=torch.float32) for o in hi_env.get_agent_obs()]
-        goals, _ = hi_agent.select_goals(state)
-        actions, _ = hi_agent.select_actions(obs_batch, goals)
-        for _ in range(10):
-            obs_raw, _, _, _ = hi_env.step(actions)
+        for _ in range(8):
+            obs_batch = [torch.tensor(o, dtype=torch.float32) for o in hi_env.get_agent_obs()]
+            goals, _ = hi_agent.select_goals(state)
+            actions, _ = hi_agent.select_actions(obs_batch, goals)
+            obs_raw, _, _, _ = hi_env.step(actions, goals=goals.tolist())
+            state = torch.tensor(hi_env.get_global_state(), dtype=torch.float32)
+
         hi_scores.append(sum(hi_env.compute_final_scores()))
         hi_pops.append(sum(cell.population for row in hi_env.sim.grid for cell in row if cell.tribe))
         hi_foods.append(sum(cell.food for row in hi_env.sim.grid for cell in row if cell.tribe))
@@ -140,9 +142,9 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         hi_no_mcts_cells.append(sum(count_tribe_cells(hi_env_no_mcts.sim.grid)))
 
         # === Random Strategy Evaluation ===
-        sim = CivilisationSimulation(rows, cols, num_tribes)
+        sim = CivilizationSimulation(rows, cols, num_tribes)
         for _ in range(10):
-            sim.takeTurn()
+            sim.take_turn()
         rand_score = 0
         for tribe in range(1, num_tribes + 1):
             territory = sum(cell.tribe == tribe for row in sim.grid for cell in row)
@@ -150,10 +152,20 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
             food = sum(cell.food for row in sim.grid for cell in row if cell.tribe == tribe)
             total_cells = rows * cols
             max_population = total_cells * 10
-            final_score = 0.4 * (territory / total_cells) * 100 + \
-                          0.3 * (population / max_population) * 100 + \
-                          0.3 * min((food / (population * 0.2 * 5)), 1.0) * 100 if population > 0 else 0
-            rand_score += final_score
+            if population > 0:
+                territory_score = (territory / total_cells)
+                population_score = (population / max_population)
+                food_score = min((food / (population * 0.2 * 5)), 1.0)
+
+                if food > population * 1.5:
+                    overstock_ratio = (food - population * 1.5) / (population * 1.5)
+                    penalty = min(overstock_ratio, 1.0)
+                    food_score *= (1 - penalty)
+
+
+                rand_score = (territory_score * 0.4 + population_score * 0.4 + food_score * 0.2) * 100
+            else:
+                rand_score = 0
         rand_scores.append(rand_score)
         rand_pops.append(sum(cell.population for row in sim.grid for cell in row if cell.tribe))
         rand_foods.append(sum(cell.food for row in sim.grid for cell in row if cell.tribe))
