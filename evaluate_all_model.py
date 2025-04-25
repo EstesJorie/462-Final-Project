@@ -9,10 +9,11 @@ import numpy as np
 from civilization_env_mappo import CivilizationEnv_MAPPO
 from civilization_env_qmix import CivilizationEnv_QMIX
 from civilization_env_hi_mappo import CivilizationEnv_HiMAPPO
+from civilization_env_hi_mappo_no_mcts import CivilizationEnv_HiMAPPO_NoMCTS
 from mappo import MAPPOAgent
 from qmix import QMIXAgent
 from hi_mappo import HiMAPPOAgent
-from civilisation_simulation_2 import CivilizationSimulation  # Random baseline
+from CivilisationSimulation2 import CivilisationSimulation  # Random baseline
 
 # ======================================
 # Seed for Reproducibility
@@ -126,9 +127,22 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         hi_foods.append(sum(cell.food for row in hi_env.sim.grid for cell in row if cell.tribe))
         hi_cells.append(sum(count_tribe_cells(hi_env.sim.grid)))
 
-        # --- Evaluate Random baseline ---
-        sim = CivilizationSimulation(rows, cols, num_tribes)
-        for _ in range(steps_per_episode):
+        # === Hi-MAPPO No MCTS Evaluation ===
+        obs_raw = hi_env_no_mcts.reset()
+        state = torch.tensor(hi_env_no_mcts.get_global_state(), dtype=torch.float32)
+        obs_batch = [torch.tensor(o, dtype=torch.float32) for o in hi_env_no_mcts.get_agent_obs()]
+        goals, _ = hi_agent_no_mcts.select_goals(state)
+        actions, _ = hi_agent_no_mcts.select_actions(obs_batch, goals)
+        for _ in range(10):
+            obs_raw, _, _, _ = hi_env_no_mcts.step(actions)
+        hi_no_mcts_scores.append(sum(hi_env_no_mcts.compute_final_scores()))
+        hi_no_mcts_pops.append(sum(cell.population for row in hi_env_no_mcts.sim.grid for cell in row if cell.tribe))
+        hi_no_mcts_foods.append(sum(cell.food for row in hi_env_no_mcts.sim.grid for cell in row if cell.tribe))
+        hi_no_mcts_cells.append(sum(count_tribe_cells(hi_env_no_mcts.sim.grid)))
+
+        # === Random Strategy Evaluation ===
+        sim = CivilisationSimulation(rows, cols, num_tribes)
+        for _ in range(10):
             sim.take_turn()
         rand_score = 0
         for tribe in range(1, num_tribes + 1):
