@@ -28,7 +28,8 @@ def train_qmix(rows, cols, num_generations, num_tribes, seed=7, log_interval=100
     agent = QMIXAgent(obs_dim, state_dim, act_dim, n_agents=num_tribes)
 
     # =======================================
-    # Helper: Convert observations
+    # Helper: Convert raw observation to tensor list
+    # Each agent observes the full environment flattened
     # =======================================
     def preprocess_obs(obs_raw):
         return [torch.tensor(obs_raw.flatten(), dtype=torch.float32) for _ in range(num_tribes)]
@@ -42,52 +43,56 @@ def train_qmix(rows, cols, num_generations, num_tribes, seed=7, log_interval=100
     pbar = tqdm(range(1, num_generations + 1), desc="Training QMIX", unit="gen")
     for iteration in pbar:
         obs_raw = env.reset()
-            state_raw = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
+        state_raw = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
 
-            # Run an episode (fixed steps)
-            for step in range(30):
-                obs_batch = preprocess_obs(obs_raw)
+        # Run one episode consisting of multiple steps
+        for step in range(30):
+            obs_batch = preprocess_obs(obs_raw)
 
-                # ε-greedy exploration schedule
-                epsilon = max(0.05, 1 - iteration / 2000)
+            # === ε-greedy exploration ===
+            # Epsilon decays linearly to 0.05 over time
+            epsilon = max(0.05, 1 - iteration / 2000)
 
-                # Agents choose actions
-                actions = agent.select_actions(obs_batch, epsilon=epsilon)
+            # === Agents select actions ===
+            actions = agent.select_actions(obs_batch, epsilon=epsilon)
 
-                # Environment executes actions
-                next_obs_raw, rewards, done, _ = env.step(actions)
-                next_state_raw = torch.tensor(next_obs_raw.flatten(), dtype=torch.float32)
-                next_obs_batch = preprocess_obs(next_obs_raw)
+            # === Environment executes actions ===
+            next_obs_raw, rewards, done, _ = env.step(actions)
+            next_state_raw = torch.tensor(next_obs_raw.flatten(), dtype=torch.float32)
+            next_obs_batch = preprocess_obs(next_obs_raw)
 
-                # Store transition in replay buffer
-                agent.store_transition(obs_batch, state_raw, actions, rewards, next_obs_batch, next_state_raw)
+            # === Store transition in experience replay buffer ===
+            agent.store_transition(obs_batch, state_raw, actions, rewards, next_obs_batch, next_state_raw)
 
-                # Update obs/state for next step
-                obs_raw = next_obs_raw
-                state_raw = next_state_raw
+            # Update current observation/state
+            obs_raw = next_obs_raw
+            state_raw = next_state_raw
 
-            # Train from buffer
-            loss = agent.train()
-            loss_value = loss.item() if loss is not None else None
-            if loss_value is not None:
-                loss_log.append((iteration, loss_value))
+        # === Train agent using sampled mini-batch from replay buffer ===
+        loss = agent.train()
+        loss_value = loss.item() if loss is not None else None
+        if loss_value is not None:
+            loss_log.append((iteration, loss_value))
 
-            # Periodically update target networks
-            if iteration % 200 == 0:
-                agent.update_targets()
+        # === Periodically update target networks ===
+        if iteration % 200 == 0:
+            agent.update_targets()
 
-            # Log environment state and reward
-            if iteration % log_interval == 0:
-                print(f"\n========== Generation {iteration} ==========")
-                env.render()
-                scores = env.compute_final_scores()
-                score_log.append((iteration, scores))
-            if loss_value is not None:
-                print("Loss:", loss_value)
-            pbar.set_postfix(loss=loss_value, scores=scores)
+        # === Periodic evaluation and logging ===
+        if iteration % log_interval == 0:
+            print(f"\n========== Generation {iteration} ==========")
+            env.render()
+            scores = env.compute_final_scores()
+            score_log.append((iteration, scores))
+
+        if loss_value is not None:
+            print("Loss:", loss_value)
+
+        pbar.set_postfix(loss=loss_value, scores=scores)
 
     # =======================================
-    # Save Models
+    # Save Trained QMIX Models
+    # Save individual agent networks and the mixing network
     # =======================================
     os.makedirs(save_dir, exist_ok=True)
     for i, net in enumerate(agent.agent_nets):
@@ -97,6 +102,7 @@ def train_qmix(rows, cols, num_generations, num_tribes, seed=7, log_interval=100
 
     # =======================================
     # Save Score Log
+    # Save evaluation scores for later analysis or plotting
     # =======================================
     with open("qmix_score_log.csv", "w", newline="") as f:
         writer = csv.writer(f)
@@ -106,5 +112,8 @@ def train_qmix(rows, cols, num_generations, num_tribes, seed=7, log_interval=100
 
     print("✅ Score logs saved as 'qmix_score_log.csv'.")
 
-    if __name__ == "__main__":
-        train_qmix(rows=rows, cols=cols, num_generations=num_generations, num_tribes=num_tribes)
+# =======================================
+# Entry Point
+# =======================================
+if __name__ == "__main__":
+    train_qmix(rows=10, cols=10, num_generations=1000, num_tribes=4)
