@@ -182,8 +182,5 @@ hi_mappo_score_log.csv
 hi_mappo_score_no_mcts_log.csv
 mappo_score_log.csv
 qmix_score_log.csv
-
-civilisation_simulation_env_mixed.py
-civilization_env_hi_mappo_no_mcts.py
 logs/
 
