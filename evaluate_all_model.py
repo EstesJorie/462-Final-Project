@@ -142,7 +142,7 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         hi_no_mcts_cells.append(sum(count_tribe_cells(hi_env_no_mcts.sim.grid)))
 
         # === Random Strategy Evaluation ===
-        sim = CivilizationSimulation(rows, cols, num_tribes)
+        sim = CivilisationSimulation(rows, cols, num_tribes)
         for _ in range(10):
             sim.take_turn()
         rand_score = 0
