@@ -15,7 +15,7 @@ class CivilizationEnv_QMIX:
         self.observation_space = (rows, cols, 3)
         self.last_scores = [0] * self.num_agents
 
-        # 动态奖励权重初始化
+        # Initialize dynamic reward weights
         self.weight_pop = 0.5
         self.weight_food = 0.05
         self.weight_survival = 2.0
@@ -37,14 +37,41 @@ class CivilizationEnv_QMIX:
         return obs
 
     def step(self, actions):
+        """
+        Execute one environment step based on the agents' actions.
+
+        Special: `self.sim.take_turn(actions)` advances the full civilization simulation:
+        - Applies each tribe's action simultaneously (move, expand, collect resources).
+        - Updates the environment grid: population, food, and tribe ownership.
+        - Tracks expansion success internally (affects rewards later).
+        """
+
         self.sim.take_turn(actions)
         obs = self._get_obs()
+
+        # Compute the customized rewards after taking the actions
         rewards, current_scores = self._compute_rewards()
+
+        # Dynamically update reward shaping weights based on performance
         self._update_reward_weights(current_scores)
+
         done = False
         return obs, rewards, done, {}
 
     def _compute_rewards(self):
+        """
+        Calculate the combined reward signal for each agent.
+
+        Components:
+        - Local rewards: based on population, food collection, and basic survival.
+        - Expansion bonus: based on actual success in expanding territory.
+        - Score improvement: based on how much the civilization score has improved.
+
+        Design Purpose:
+        Encourage a balance between growing larger populations, gathering enough resources,
+        and expanding territory sustainably, not just greedy short-term actions.
+        """
+
         local_rewards = [0.0] * self.num_agents
 
         for i in range(self.rows):
@@ -52,6 +79,7 @@ class CivilizationEnv_QMIX:
                 cell = self.sim.grid[i][j]
                 if cell.tribe:
                     idx = cell.tribe - 1
+                    # Cap the food term to avoid reward explosion for hoarded food
                     food_term = min(cell.food, 10)
                     local_rewards[idx] += (
                         self.weight_pop * cell.population +
@@ -59,11 +87,17 @@ class CivilizationEnv_QMIX:
                         self.weight_survival
                     )
 
+        # Expansion rewards based on the number of successful new expansions
         expansion_bonus = self.sim.expand_reward
+
+        # Compute the final civilization scores
         current_scores = self.compute_final_scores()
+
+        # Reward difference based on score improvement from last step
         score_rewards = [curr - prev for curr, prev in zip(current_scores, self.last_scores)]
         self.last_scores = current_scores
 
+        # Combine local reward + expansion bonus + score improvement into a final reward
         mixed_rewards = [
             local + self.weight_expand * expand + self.lambda_score * score
             for local, expand, score in zip(local_rewards, expansion_bonus, score_rewards)
@@ -72,7 +106,20 @@ class CivilizationEnv_QMIX:
         return mixed_rewards, current_scores
 
     def _update_reward_weights(self, current_scores):
+        """
+        Dynamically adjust reward shaping weights based on agents' overall performance.
+
+        If the average final score improves:
+            - Slightly increase reward weights to reinforce learning direction.
+        If the average score decreases:
+            - Decay reward weights to encourage exploration of alternative strategies.
+
+        Purpose:
+        Make the reward system adaptive without manually retuning hyperparameters during long training.
+        """
+
         avg_score = sum(current_scores) / len(current_scores)
+
         if avg_score > self.last_avg_score:
             self.weight_pop += 0.01
             self.weight_food += 0.05
@@ -85,9 +132,21 @@ class CivilizationEnv_QMIX:
             self.weight_survival *= 0.98
             self.weight_expand *= 0.98
             self.lambda_score *= 0.99
+
         self.last_avg_score = avg_score
 
     def compute_final_scores(self, H=5, food_per_person=0.2):
+        """
+        Compute civilization scores for each tribe based on:
+        - Territory controlled (area occupied)
+        - Population size (scaled to map size)
+        - Food sufficiency to sustain population over time
+
+        Food sufficiency design:
+        - Excess food beyond basic need is slightly penalized (hoarding is discouraged).
+        - Final score is a weighted average: 40% territory, 40% population, 20% food efficiency.
+        """
+
         total_cells = self.rows * self.cols
         max_population_per_cell = 10
         scores = []
@@ -107,17 +166,16 @@ class CivilizationEnv_QMIX:
 
             territory_score = territory / total_cells
             population_score = population / (max_population_per_cell * total_cells)
+
             food_needed = population * food_per_person * H
             food_ratio = food / (food_needed + 1e-6)
 
-            # 改进版得分：多余食物将被惩罚
             if food_ratio >= 1.0:
                 food_score = 1.0 - 0.1 * (food_ratio - 1.0)
                 food_score = max(food_score, 0.0)
             else:
                 food_score = food_ratio
 
-            # 分数权重调整：食物只占 20%
             final_score = (
                     0.4 * territory_score +
                     0.4 * population_score +
