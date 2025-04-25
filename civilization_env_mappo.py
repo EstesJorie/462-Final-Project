@@ -18,7 +18,7 @@ class CivilizationEnv_MAPPO:
 
         self.last_scores = [0] * self.num_agents
 
-        # 动态奖励权重初始化
+        # Dynamic reward weight initialization
         self.weight_pop = 0.5
         self.weight_food = 0.05
         self.weight_survival = 2.0
@@ -42,15 +42,41 @@ class CivilizationEnv_MAPPO:
         return obs
 
     def step(self, actions):
+        """
+        Execute a simulation step using agent actions.
+
+        Special part: `self.sim.take_turn(actions)` advances the world state:
+        - Applies all tribes' decisions simultaneously.
+        - Updates the grid for food collection, population growth, expansion attempts.
+        - Internally tracks events like expansion success for reward calculations.
+        """
+
         self.sim.take_turn(actions)
         self.grid = self.sim.grid
+
         obs = self._get_obs()
+
         rewards = self._compute_rewards()
+
+        # Dynamically adjust reward weights based on last step's performance
         self._update_reward_weights(self.last_scores)
+
         done = False
         return obs, rewards, done, {}
 
     def _compute_rewards(self):
+        """
+        Calculate the composite reward for each agent after the turn.
+
+        Reward components:
+        - Local development reward: population, food, basic survival.
+        - Expansion reward: based on successful territory growth recorded in `expand_reward`.
+        - Score improvement reward: based on change in final civilization scores.
+
+        Purpose:
+        Provide a balanced multi-objective learning signal combining growth, resource management, and expansion.
+        """
+
         local_rewards = [0.0] * self.num_agents
 
         for i in range(self.rows):
@@ -64,11 +90,17 @@ class CivilizationEnv_MAPPO:
                         self.weight_survival
                     )
 
+        # Expansion reward from the simulator (amount of successful new territory expansion)
         expansion_bonus = self.sim.expand_reward
+
+        # Calculate current civilization scores
         current_scores = self.compute_final_scores()
+
+        # Reward based on how much the civilization score improved compared to last step
         score_rewards = [curr - prev for curr, prev in zip(current_scores, self.last_scores)]
         self.last_scores = current_scores
 
+        # Mix different reward sources
         mixed_rewards = [
             local + self.weight_expand * expand + self.lambda_score * score
             for local, expand, score in zip(local_rewards, expansion_bonus, score_rewards)
@@ -77,7 +109,20 @@ class CivilizationEnv_MAPPO:
         return mixed_rewards
 
     def _update_reward_weights(self, current_scores):
+        """
+        Dynamically adjust the reward weighting parameters based on agent performance.
+
+        Mechanism:
+        - If average civilization score improves → slightly boost reward weights (positive feedback).
+        - If average score stagnates or drops → decay reward weights (negative feedback).
+
+        Purpose:
+        Automatically balance exploration and exploitation as training progresses,
+        without needing manual hyperparameter tuning.
+        """
+
         avg_score = sum(current_scores) / len(current_scores)
+
         if avg_score > self.last_avg_score:
             self.weight_pop += 0.01
             self.weight_food += 0.05
@@ -90,9 +135,22 @@ class CivilizationEnv_MAPPO:
             self.weight_survival *= 0.98
             self.weight_expand *= 0.98
             self.lambda_score *= 0.99
+
         self.last_avg_score = avg_score
 
     def compute_final_scores(self, H=5, food_per_person=0.2):
+        """
+        Compute final civilization scores for each tribe based on:
+        - Territory controlled
+        - Population size
+        - Food sufficiency
+
+        Design:
+        - Territory and population are weighted equally (40% each).
+        - Food management contributes 20% (encourages balance between expansion and sustainability).
+        - Excess food is slightly penalized to avoid unnecessary hoarding.
+        """
+
         total_cells = self.rows * self.cols
         max_population_per_cell = 10
         scores = []
@@ -112,17 +170,16 @@ class CivilizationEnv_MAPPO:
 
             territory_score = territory / total_cells
             population_score = population / (max_population_per_cell * total_cells)
+
             food_needed = population * food_per_person * H
             food_ratio = food / (food_needed + 1e-6)
 
-            # 改进版得分：多余食物将被惩罚
             if food_ratio >= 1.0:
                 food_score = 1.0 - 0.1 * (food_ratio - 1.0)
                 food_score = max(food_score, 0.0)
             else:
                 food_score = food_ratio
 
-            # 分数权重调整：食物只占 20%
             final_score = (
                     0.4 * territory_score +
                     0.4 * population_score +
