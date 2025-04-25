@@ -171,7 +171,20 @@ cython_debug/
 .pypirc
 
 .DS_Store
-trained_models/
+trained_models_mappo/
 trained_models_hi_mappo/
+trained_models_hi_mappo_no_mcts/
 trained_models_qmix/
 evaluate_all_model_smoothed.png
+evaluate_all_model_plotsNew.png
+
+hi_mappo_score_log.csv
+hi_mappo_score_no_mcts_log.csv
+mappo_score_log.csv
+qmix_score_log.csv
+
+civilisation_simulation_env_mixed.py
+civilization_env_hi_mappo_no_mcts.py
+logs/
+mixedAgentSimulator.py
+
