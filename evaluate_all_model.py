@@ -12,8 +12,7 @@ from civilization_env_hi_mappo import CivilizationEnv_HiMAPPO
 from mappo import MAPPOAgent
 from qmix import QMIXAgent
 from hi_mappo import HiMAPPOAgent
-from hi_mappo_no_mcts import HiMAPPOAgent as HiMAPPOAgent_no_mcts
-from CivilisationSimulation2 import CivilisationSimulation  # Used for random baseline
+from civilisation_simulation_2 import CivilizationSimulation  # Random baseline
 
 # ======================================
 # Seed for Reproducibility
@@ -24,7 +23,8 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 
 # ======================================
-# Utility to Count Cells Occupied by Each Tribe
+# Utility: Count how many cells are occupied by each tribe
+# Used for tracking territory size
 # ======================================
 def count_tribe_cells(grid):
     tribe_cells = {}
@@ -35,63 +35,62 @@ def count_tribe_cells(grid):
     return [tribe_cells.get(i + 1, 0) for i in range(3)]
 
 # ======================================
-# Moving Average Smoothing for Plots
+# Utility: Moving average smoothing
+# Used to smooth curves for better visualization
 # ======================================
 def smooth(data, window=50):
     return pd.Series(data).rolling(window, min_periods=1).mean()
 
 # ======================================
 # Main Evaluation Function
-# Evaluates all trained agents and random baseline
+# This function evaluates:
+#   - Trained MAPPO agent
+#   - Trained QMIX agent
+#   - Trained Hi-MAPPO agent
+#   - Random baseline
+# over multiple episodes, logs their performance, and plots results.
 # ======================================
 def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
     obs_dim = rows * cols * 3
     act_dim = 3
     goal_dim = 3
+    steps_per_episode = 100  # Fixed number of environment steps per evaluation episode
 
-    # === Load Trained MAPPO ===
+    # === Load trained MAPPO model ===
     mappo_env = CivilizationEnv_MAPPO(rows, cols, num_tribes)
     mappo_agent = MAPPOAgent(obs_dim, act_dim, num_tribes)
     for i, actor in enumerate(mappo_agent.actors):
         actor.load_state_dict(torch.load(os.path.join("trained_models_mappo", f"actor_{i}.pth")))
     mappo_agent.critic.load_state_dict(torch.load(os.path.join("trained_models_mappo", "critic.pth")))
 
-    # === Load Trained QMIX ===
+    # === Load trained QMIX model ===
     qmix_env = CivilizationEnv_QMIX(rows, cols, num_tribes)
     qmix_agent = QMIXAgent(obs_dim, obs_dim, act_dim, num_tribes)
     for i, net in enumerate(qmix_agent.agent_nets):
         net.load_state_dict(torch.load(os.path.join("trained_models_qmix", f"qmix_agent_{i}.pth")))
     qmix_agent.mix_net.load_state_dict(torch.load(os.path.join("trained_models_qmix", "qmix_mixer.pth")))
 
-    # === Load Trained Hi-MAPPO ===
+    # === Load trained Hi-MAPPO model ===
     hi_env = CivilizationEnv_HiMAPPO(rows, cols, num_tribes)
     hi_agent = HiMAPPOAgent(obs_dim, obs_dim, goal_dim, act_dim, num_tribes)
     for i, worker in enumerate(hi_agent.workers):
         worker.load_state_dict(torch.load(os.path.join("trained_models_hi_mappo", f"worker_{i}.pth")))
     hi_agent.manager.load_state_dict(torch.load(os.path.join("trained_models_hi_mappo", "manager.pth")))
 
-    # === Load Trained Hi-MAPPO No MCTS ===
-    hi_env_no_mcts = CivilizationEnv_HiMAPPO(rows, cols, num_tribes)
-    hi_agent_no_mcts = HiMAPPOAgent_no_mcts(obs_dim, obs_dim, goal_dim, act_dim, num_tribes)
-    for i, worker in enumerate(hi_agent_no_mcts.workers):
-        worker.load_state_dict(torch.load(os.path.join("trained_models_hi_mappo_no_mcts", f"worker_{i}.pth")))
-    hi_agent_no_mcts.manager.load_state_dict(torch.load(os.path.join("trained_models_hi_mappo_no_mcts", "manager.pth")))
-
-    # === Logs for all strategies ===
-    mappo_pops, qmix_pops, hi_pops, hi_no_mcts_pops, rand_pops = [], [], [], [], []
-    mappo_foods, qmix_foods, hi_foods, hi_no_mcts_foods, rand_foods = [], [], [], [], []
-    mappo_cells, qmix_cells, hi_cells, hi_no_mcts_cells, rand_cells = [], [], [], [], []
-    mappo_scores, qmix_scores, hi_scores, hi_no_mcts_scores, rand_scores = [], [], [], [], []
+    # === Initialize logs to record population, food, occupied cells, final scores ===
+    mappo_pops, qmix_pops, hi_pops, rand_pops = [], [], [], []
+    mappo_foods, qmix_foods, hi_foods, rand_foods = [], [], [], []
+    mappo_cells, qmix_cells, hi_cells, rand_cells = [], [], [], []
+    mappo_scores, qmix_scores, hi_scores, rand_scores = [], [], [], []
 
     # ======================================
     # Evaluation Loop
-    # Run each agent for `num_episodes`
     # ======================================
     for episode in range(1, num_episodes + 1):
 
-        # === MAPPO Evaluation ===
+        # --- Evaluate MAPPO ---
         obs_raw = mappo_env.reset()
-        for _ in range(10):
+        for _ in range(steps_per_episode):
             obs_batch = [torch.tensor(obs_raw.flatten(), dtype=torch.float32) for _ in range(num_tribes)]
             actions, _ = mappo_agent.select_action(obs_batch)
             obs_raw, _, _, _ = mappo_env.step(actions)
@@ -100,10 +99,10 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         mappo_foods.append(sum(cell.food for row in mappo_env.sim.grid for cell in row if cell.tribe))
         mappo_cells.append(sum(count_tribe_cells(mappo_env.sim.grid)))
 
-        # === QMIX Evaluation ===
+        # --- Evaluate QMIX ---
         obs_raw = qmix_env.reset()
         state = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
-        for _ in range(30):
+        for _ in range(steps_per_episode):
             obs_batch = [state.clone().detach().float() for _ in range(num_tribes)]
             actions = qmix_agent.select_actions(obs_batch, epsilon=0.0)  # Greedy
             obs_raw, _, _, _ = qmix_env.step(actions)
@@ -113,37 +112,23 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         qmix_foods.append(sum(cell.food for row in qmix_env.sim.grid for cell in row if cell.tribe))
         qmix_cells.append(sum(count_tribe_cells(qmix_env.sim.grid)))
 
-        # === Hi-MAPPO Evaluation ===
+        # --- Evaluate Hi-MAPPO ---
         obs_raw = hi_env.reset()
         state = torch.tensor(hi_env.get_global_state(), dtype=torch.float32)
-        for _ in range(8):
+        for _ in range(steps_per_episode):
             obs_batch = [torch.tensor(o, dtype=torch.float32) for o in hi_env.get_agent_obs()]
             goals, _ = hi_agent.select_goals(state)
             actions, _ = hi_agent.select_actions(obs_batch, goals)
             obs_raw, _, _, _ = hi_env.step(actions, goals=goals.tolist())
             state = torch.tensor(hi_env.get_global_state(), dtype=torch.float32)
-
         hi_scores.append(sum(hi_env.compute_final_scores()))
         hi_pops.append(sum(cell.population for row in hi_env.sim.grid for cell in row if cell.tribe))
         hi_foods.append(sum(cell.food for row in hi_env.sim.grid for cell in row if cell.tribe))
         hi_cells.append(sum(count_tribe_cells(hi_env.sim.grid)))
 
-        # === Hi-MAPPO No MCTS Evaluation ===
-        obs_raw = hi_env_no_mcts.reset()
-        state = torch.tensor(hi_env_no_mcts.get_global_state(), dtype=torch.float32)
-        obs_batch = [torch.tensor(o, dtype=torch.float32) for o in hi_env_no_mcts.get_agent_obs()]
-        goals, _ = hi_agent_no_mcts.select_goals(state)
-        actions, _ = hi_agent_no_mcts.select_actions(obs_batch, goals)
-        for _ in range(10):
-            obs_raw, _, _, _ = hi_env_no_mcts.step(actions)
-        hi_no_mcts_scores.append(sum(hi_env_no_mcts.compute_final_scores()))
-        hi_no_mcts_pops.append(sum(cell.population for row in hi_env_no_mcts.sim.grid for cell in row if cell.tribe))
-        hi_no_mcts_foods.append(sum(cell.food for row in hi_env_no_mcts.sim.grid for cell in row if cell.tribe))
-        hi_no_mcts_cells.append(sum(count_tribe_cells(hi_env_no_mcts.sim.grid)))
-
-        # === Random Strategy Evaluation ===
+        # --- Evaluate Random baseline ---
         sim = CivilizationSimulation(rows, cols, num_tribes)
-        for _ in range(10):
+        for _ in range(steps_per_episode):
             sim.take_turn()
         rand_score = 0
         for tribe in range(1, num_tribes + 1):
@@ -156,13 +141,10 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
                 territory_score = (territory / total_cells)
                 population_score = (population / max_population)
                 food_score = min((food / (population * 0.2 * 5)), 1.0)
-
                 if food > population * 1.5:
                     overstock_ratio = (food - population * 1.5) / (population * 1.5)
                     penalty = min(overstock_ratio, 1.0)
                     food_score *= (1 - penalty)
-
-
                 rand_score = (territory_score * 0.4 + population_score * 0.4 + food_score * 0.2) * 100
             else:
                 rand_score = 0
@@ -175,16 +157,15 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
             print(f"Episode {episode} done.")
 
     # ======================================
-    # Plot Results
-    # Four metrics: Population, Food, Score, Territory
+    # Plot results: population, food, score, occupied cells
     # ======================================
     sm = lambda x: smooth(x)
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+    fig.suptitle(f"Evaluation with {steps_per_episode} Steps per Episode", fontsize=16)
 
     axs[0, 0].plot(sm(mappo_pops), label="MAPPO", linewidth=2)
     axs[0, 0].plot(sm(qmix_pops), label="QMIX", linewidth=2)
-    axs[0, 0].plot(sm(hi_pops), label="Hi-MAPPO+MCTS", linewidth=2)
-    axs[0, 0].plot(sm(hi_no_mcts_pops), label="Hi-MAPPO", linewidth=2)
+    axs[0, 0].plot(sm(hi_pops), label="Hi-MAPPO", linewidth=2)
     axs[0, 0].plot(sm(rand_pops), label="Random", linewidth=2)
     axs[0, 0].set_title("Total Population")
     axs[0, 0].legend()
@@ -192,8 +173,7 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
 
     axs[0, 1].plot(sm(mappo_foods), label="MAPPO", linewidth=2)
     axs[0, 1].plot(sm(qmix_foods), label="QMIX", linewidth=2)
-    axs[0, 1].plot(sm(hi_foods), label="Hi-MAPPO+MCTS", linewidth=2)
-    axs[0, 1].plot(sm(hi_no_mcts_foods), label="Hi-MAPPO", linewidth=2)
+    axs[0, 1].plot(sm(hi_foods), label="Hi-MAPPO", linewidth=2)
     axs[0, 1].plot(sm(rand_foods), label="Random", linewidth=2)
     axs[0, 1].set_title("Total Food")
     axs[0, 1].legend()
@@ -201,8 +181,7 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
 
     axs[1, 0].plot(sm(mappo_scores), label="MAPPO", linewidth=2)
     axs[1, 0].plot(sm(qmix_scores), label="QMIX", linewidth=2)
-    axs[1, 0].plot(sm(hi_scores), label="Hi-MAPPO+MCTS", linewidth=2)
-    axs[1, 0].plot(sm(hi_no_mcts_scores), label="Hi-MAPPO", linewidth=2)
+    axs[1, 0].plot(sm(hi_scores), label="Hi-MAPPO", linewidth=2)
     axs[1, 0].plot(sm(rand_scores), label="Random", linewidth=2)
     axs[1, 0].set_title("Final Score")
     axs[1, 0].legend()
@@ -210,22 +189,21 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
 
     axs[1, 1].plot(sm(mappo_cells), label="MAPPO", linewidth=2)
     axs[1, 1].plot(sm(qmix_cells), label="QMIX", linewidth=2)
-    axs[1, 1].plot(sm(hi_cells), label="Hi-MAPPO+MCTS", linewidth=2)
-    axs[1, 1].plot(sm(hi_no_mcts_cells), label="Hi-MAPPO", linewidth=2)
+    axs[1, 1].plot(sm(hi_cells), label="Hi-MAPPO", linewidth=2)
     axs[1, 1].plot(sm(rand_cells), label="Random", linewidth=2)
     axs[1, 1].set_title("Occupied Cells")
     axs[1, 1].legend()
     axs[1, 1].grid(True)
 
     plt.tight_layout()
-    plt.savefig("evaluate_all_model_plotsNew.png")
+    plt.savefig("evaluate_all_model_4plots.png")
     plt.show()
 
 # ======================================
 # Entry Point for Evaluation Script
 # ======================================
 if __name__ == "__main__":
-    rows, cols = map(int, input("Enter no. of rows and columns: ").split())
-    num_episodes = int(input("Enter number of generations: "))
-    num_tribes = int(input("Enter number of starting tribes: "))
-    evaluate_all(rows, cols, num_tribes, num_episodes)
+    rows, cols = 10, 10
+    num_episodes = 1000
+    num_tribes = 3
+    evaluate_all(rows, cols, num_episodes)
