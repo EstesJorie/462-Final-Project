@@ -205,5 +205,5 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
 if __name__ == "__main__":
     rows, cols = 10, 10
     num_episodes = 1000
-    num_tribes = 3
+    num_tribes = 4
     evaluate_all(rows, cols, num_episodes)
