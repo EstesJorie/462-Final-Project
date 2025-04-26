@@ -36,7 +36,7 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
     # Training Loop over Generations
     # Each generation = new episode in the environment
     # ========================================================
-    pbar = tqdm(range(1, num_generations + 1), desc="Training HI-MAPPO\n", unit="gen")
+    pbar = tqdm(range(1, num_generations + 1), desc="Training HI-MAPPO", unit="gen")
     for gen in pbar:
         env.reset()
 
