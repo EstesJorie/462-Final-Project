@@ -110,11 +110,8 @@ class CivilizationEnv_HiMAPPO:
 
         return mixed_rewards
     
-    # =======================================
-    # Compute final civilization score per tribe
-    # Score = α × territory + β × population + γ × food efficiency
-    # =======================================
-def compute_final_scores(self, H=5, food_per_person=0.2):
+
+    def compute_final_scores(self, H=5, food_per_person=0.2):
         """
         Compute the final overall score for each tribe based on:
         - Territory controlled (number of cells)
@@ -123,7 +120,6 @@ def compute_final_scores(self, H=5, food_per_person=0.2):
 
         This score serves as an indicator of each tribe's long-term viability and success.
         """
-
         total_cells = self.rows * self.cols
         max_population_per_cell = 10
         scores = []
