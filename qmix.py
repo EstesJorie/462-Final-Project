@@ -31,19 +31,19 @@ class AgentNet(nn.Module):
 # Uses hypernetworks conditioned on global state
 # =====================================
 class MixerNet(nn.Module):
-    def __init__(self, n_agents, state_dim, hidden_dim=32):
+    def __init__(self, n_agents, state_dim, mixer_hidden_dim=32):  # Changed parameter name
         super().__init__()
         self.n_agents = n_agents
         self.state_dim = state_dim
 
         # Hypernetworks to produce mixing weights/biases from global state
-        self.hyper_w1 = nn.Linear(state_dim, n_agents * hidden_dim)  # Weights for first layer
-        self.hyper_w2 = nn.Linear(state_dim, hidden_dim)             # Weights for second layer
-        self.hyper_b1 = nn.Linear(state_dim, hidden_dim)             # Bias for first layer
-        self.hyper_b2 = nn.Sequential(                               # Bias for final output
-            nn.Linear(state_dim, hidden_dim),
+        self.hyper_w1 = nn.Linear(state_dim, n_agents * mixer_hidden_dim)  # Use mixer_hidden_dim
+        self.hyper_w2 = nn.Linear(state_dim, mixer_hidden_dim)             
+        self.hyper_b1 = nn.Linear(state_dim, mixer_hidden_dim)             
+        self.hyper_b2 = nn.Sequential(                               
+            nn.Linear(state_dim, mixer_hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(mixer_hidden_dim, 1)
         )
 
     def forward(self, agent_qs, state):
@@ -71,7 +71,8 @@ class MixerNet(nn.Module):
 class QMIXAgent:
     def __init__(
         self, obs_dim, state_dim, act_dim, n_agents,
-        hidden_dim=64, buffer_size=10000, batch_size=64,
+        hidden_dim=64, mixer_hidden_dim=200,  # Added mixer_hidden_dim parameter
+        buffer_size=10000, batch_size=64,
         lr=1e-3, gamma=0.99
     ):
         self.n_agents = n_agents
@@ -85,9 +86,9 @@ class QMIXAgent:
         self.agent_nets = [AgentNet(obs_dim, hidden_dim, act_dim) for _ in range(n_agents)]
         self.target_agent_nets = [AgentNet(obs_dim, hidden_dim, act_dim) for _ in range(n_agents)]
 
-        # Initialize online and target mixer networks
-        self.mix_net = MixerNet(n_agents, state_dim, hidden_dim=160)
-        self.target_mix_net = MixerNet(n_agents, state_dim, hidden_dim=160)
+        # Initialize mixer networks with separate hidden dimension
+        self.mix_net = MixerNet(n_agents, state_dim, mixer_hidden_dim=mixer_hidden_dim)
+        self.target_mix_net = MixerNet(n_agents, state_dim, mixer_hidden_dim=mixer_hidden_dim)
 
         # Sync target networks
         for i in range(n_agents):
@@ -103,21 +104,34 @@ class QMIXAgent:
 
     # ε-greedy policy for action selection
     def select_actions(self, obs_batch, epsilon=0.05):
+        """
+        Select actions for all agents using epsilon-greedy policy
+        Args:
+            obs_batch: List of observations for each agent
+            epsilon: Exploration probability
+        Returns:
+            list of selected actions
+        """
+        if isinstance(obs_batch[0], torch.Tensor):
+            obs_tensor = torch.stack(obs_batch)
+        else:
+            obs_tensor = torch.FloatTensor(obs_batch)
+            
         actions = []
-        for i in range(self.n_agents):
-            q_values = self.agent_nets[i](obs_batch[i])  # Get Q-values for current obs
-            if random.random() < epsilon:
-                action = random.randint(0, self.act_dim - 1)  # Explore
-            else:
-                action = q_values.argmax().item()  # Exploit best action
-            actions.append(action)
+        with torch.no_grad():
+            for i in range(self.n_agents):
+                q_values = self.agent_nets[i](obs_tensor[i])
+                if random.random() < epsilon:
+                    action = random.randint(0, self.act_dim - 1)
+                else:
+                    action = q_values.argmax().item()
+                actions.append(action)
+                
         return actions
 
-    # Store a transition (one timestep) in buffer
     def store_transition(self, obs, state, actions, rewards, next_obs, next_state):
         self.buffer.append((obs, state, actions, rewards, next_obs, next_state))
 
-    # Train all networks using a batch of experiences from buffer
     def train(self):
         if len(self.buffer) < self.batch_size:
             return  # Wait until buffer has enough samples

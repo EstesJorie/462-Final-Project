@@ -13,9 +13,18 @@ import time
 TEST_CONFIG = {
         'rows': 10,
         'cols': 10,
-        'generations': 10000,
+        'generations': 5000,
         'num_tribes': 5
     }
+
+BOOT_SCREEN = r"""
+    _                    _     _____          _                 
+   / \   __ _  ___ _ __ | |_  |_   _| __ __ _(_)_ __   ___ _ __ 
+  / _ \ / _` |/ _ \ '_ \| __|   | || '__/ _` | | '_ \ / _ \ '__|
+ / ___ \ (_| |  __/ | | | |_    | || | | (_| | | | | |  __/ |   
+/_/   \_\__, |\___|_| |_|\__|   |_||_|  \__,_|_|_| |_|\___|_|   
+        |___/                                                   
+"""
 
 logFile = "train_all.log"
 if not os.path.exists(logFile):
@@ -46,7 +55,7 @@ def getModeSelection():
                return choice == '1' # if choice = 1, then TRUE thus TEST_MODE = True
           elif choice == 'q':
                print(f"{TEST_CONFIG}\n")
-               print("Do you want to update the TEST_CONFIG values? (y/n)\n")+
+               print("Do you want to update the TEST_CONFIG values? (y/n)\n")
                updatedChoice = input("Enter choice: ").strip().lower()
                logging.info(f"User selected {updatedChoice} to update TEST_CONFIG.")
                if updatedChoice == 'y':
@@ -78,6 +87,10 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
     Raises:
         Exception: If training fails for any model
     """
+    print(BOOT_SCREEN)
+    time.sleep(2)
+    os.system('cls' if os.name == 'nt' else 'clear')
+
     TEST_MODE = getModeSelection()
 
     if TEST_MODE:

@@ -71,11 +71,12 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
     action_dim = 3
     
     qmix_agent = QMIXAgent(
-        obs_dim=agent_dim + 160,
+        obs_dim=agent_dim,
         state_dim=state_dim,
         act_dim=action_dim,
-        n_agents=num_tribes,          
-        hidden_dim=64,       
+        n_agents=num_tribes,   
+        hidden_dim=64,        # Agent network hidden dim
+        mixer_hidden_dim=200, # Mixer network hidden dim
         buffer_size=10000,
         batch_size=64,
         lr=1e-3,
@@ -115,6 +116,8 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
     # ======================================
     # Evaluation Loop
     # ======================================
+    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+    
     for episode in range(1, num_episodes + 1):
 
         # --- Evaluate MAPPO ---
@@ -132,7 +135,7 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         obs_raw = qmix_env.reset()
         state = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
         for _ in range(steps_per_episode):
-            obs_batch = [state.clone().detach().float() for _ in range(num_tribes)]
+            obs_batch = [torch.tensor(obs_raw.flatten(), dtype=torch.float32) for _ in range(num_tribes)]
             actions = qmix_agent.select_actions(obs_batch, epsilon=0.0)  # Greedy
             obs_raw, _, _, _ = qmix_env.step(actions)
             state = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
@@ -194,10 +197,8 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
                 rand_score = 0
         rand_scores.append(rand_score)
         rand_pops.append(sum(cell.population for row in sim.grid for cell in row if cell.tribe))
-        rand_foods.append(sum(cell.food for row in sim.grid for cell in row if cell.tribe))
-        rand_cells.append(sum(count_tribe_cells(sim.grid)))
-
     if episode % log_interval == 0:
+        sm = smooth
         sm = smooth
         if 'axs' not in locals():
             fig, axs = plt.subplots(2, 2, figsize=(14, 10))

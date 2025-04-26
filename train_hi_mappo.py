@@ -80,7 +80,8 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
             score_log.append((gen, scores))
             print("Loss:", loss_value)
             print("Scores:", scores)
-            pbar.set_postfix(loss=loss_value, scores=scores)
+            if gen % log_interval == 0:
+                pbar.set_postfix(loss=loss_value, scores=scores)
 
     # ========================================================
     # Save Training Results
