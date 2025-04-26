@@ -5,6 +5,7 @@ from mixedAgentSimulator import MixedAgentSimulator
 import logging
 import os
 import torch
+import time
 
 rows, cols = 10, 10
 obs_dim = rows * cols * 3
@@ -86,6 +87,7 @@ sim = MixedAgentSimulator(
     num_episodes=5000,
     log_interval=25
 )
+logging.info(f"Simulation initialized with {len(agents)} agents: {agent_names}")
 
 sim.run(stepsPerEp=25, render=True, output_csv=outputFile)
 logging.info(f"Simulation completed. Results saved to {outputFile}")

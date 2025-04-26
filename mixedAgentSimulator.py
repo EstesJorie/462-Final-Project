@@ -48,7 +48,7 @@ class MixedAgentSimulator:
             if render and ep % 500 == 0:
                 self.env.render()
                 self.env.renderHeatmap(sPath=f"logs/heatmap_ep_{ep}.png")
-                print(f"Episode {ep}: Final Scores: {finalScores}")
+                print(f"Episode {ep}: Scores: {finalScores}")
 
         os.makedirs("logs", exist_ok=True)
 
