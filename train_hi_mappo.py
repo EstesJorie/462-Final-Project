@@ -36,7 +36,7 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
     # Training Loop over Generations
     # Each generation = new episode in the environment
     # ========================================================
-    pbar = tqdm(range(1, num_generations + 1), desc="Training HI-MAPPO", unit="gen")
+    pbar = tqdm(range(1, num_generations + 1), desc="Training HI-MAPPO\n", unit="gen")
     for gen in pbar:
         env.reset()
 
@@ -45,7 +45,7 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
 
         # 🧠 High-level Manager selects abstract goals for each worker
         goal_ids, logp_goal = agent.select_goals(state)
-        env.last_goals = goal_ids.tolist()  # For environment bookkeeping
+        env.last_scores = goal_ids.tolist()  # For environment bookkeeping
 
         # Initialize a trajectory buffer for this episode
         traj = {
