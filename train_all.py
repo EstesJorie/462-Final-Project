@@ -13,7 +13,7 @@ import time
 TEST_CONFIG = {
         'rows': 10,
         'cols': 10,
-        'generations': 10000,
+        'generations': 5000,
         'num_tribes': 5
     }
 
