@@ -5,6 +5,7 @@ from mixedAgentSimulator import MixedAgentSimulator
 import logging
 import os
 import torch
+import time
 
 rows, cols = 10, 10
 obs_dim = rows * cols * 3
@@ -20,7 +21,7 @@ if not os.path.exists(logFile):
     print(f"Log file '{logFile}' does not exist, creating a new one.\n")
 
 logging.basicConfig(filename=logFile,
-                filemode='w',
+                filemode='a',
                 format='%(asctime)s - %(levelname)s - %(message)s',
                 level=logging.INFO,
                 datefmt='%Y-%m-%d %H:%M:%S')
@@ -83,10 +84,11 @@ sim = MixedAgentSimulator(
     agent_names=agent_names,
     rows=rows,
     cols=cols,
-    num_episodes=50,
-    log_interval=10
+    num_episodes=5000,
+    log_interval=25
 )
+logging.info(f"Simulation initialized with {len(agents)} agents: {agent_names}")
 
-sim.run(stepsPerEp=10, render=True, output_csv=outputFile)
+sim.run(stepsPerEp=25, render=True, output_csv=outputFile)
 logging.info(f"Simulation completed. Results saved to {outputFile}")
 sim.env.renderHeatmap(sPath="logs/final_territory_heatmap.png")

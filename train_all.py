@@ -13,16 +13,25 @@ import time
 TEST_CONFIG = {
         'rows': 10,
         'cols': 10,
-        'generations': 10000,
+        'generations': 5000,
         'num_tribes': 5
 ç    }
+
+BOOT_SCREEN = r"""
+    _                    _     _____          _                 
+   / \   __ _  ___ _ __ | |_  |_   _| __ __ _(_)_ __   ___ _ __ 
+  / _ \ / _` |/ _ \ '_ \| __|   | || '__/ _` | | '_ \ / _ \ '__|
+ / ___ \ (_| |  __/ | | | |_    | || | | (_| | | | | |  __/ |   
+/_/   \_\__, |\___|_| |_|\__|   |_||_|  \__,_|_|_| |_|\___|_|   
+        |___/                                                   
+"""
 
 logFile = "train_all.log"
 if not os.path.exists(logFile):
     print(f"Log file '{logFile}' does not exist, creating a new one.\n")
 
 logging.basicConfig(filename= logFile,
-                    filemode = 'w',
+                    filemode = 'a', #append log file, DO NOT SET to 'w' 
                     format = '%(asctime)s - %(levelname)s - %(message)s',
                     level = logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
@@ -78,6 +87,10 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
     Raises:
         Exception: If training fails for any model
     """
+    print(BOOT_SCREEN)
+    time.sleep(2)
+    os.system('cls' if os.name == 'nt' else 'clear')
+
     TEST_MODE = getModeSelection()
 
     if TEST_MODE:
@@ -110,10 +123,10 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
             
             start_time = time.time()  
             results[name] = train_fn()
-            duration = time.time() - start_time  
+            duration = (time.time() - start_time) / 60 #secs to mins  
 
             print(f"{name} training completed in {duration:.2f} seconds.\n")
-            logging.info(f"Finished training {name} in {duration:.2f} seconds.")
+            logging.info(f"Finished training {name} in {duration:.2f}.")
             time.sleep(1)
 
         print("\n=== All models trained successfully! ===\n")
