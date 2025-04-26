@@ -22,7 +22,7 @@ if not os.path.exists(logFile):
     print(f"Log file '{logFile}' does not exist, creating a new one.\n")
 
 logging.basicConfig(filename= logFile,
-                    filemode = 'w',
+                    filemode = 'a', #append log file, DO NOT SET to 'w' 
                     format = '%(asctime)s - %(levelname)s - %(message)s',
                     level = logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
@@ -46,7 +46,7 @@ def getModeSelection():
                return choice == '1' # if choice = 1, then TRUE thus TEST_MODE = True
           elif choice == 'q':
                print(f"{TEST_CONFIG}\n")
-               print("Do you want to update the TEST_CONFIG values? (y/n)\n")
+               print("Do you want to update the TEST_CONFIG values? (y/n)\n")+
                updatedChoice = input("Enter choice: ").strip().lower()
                logging.info(f"User selected {updatedChoice} to update TEST_CONFIG.")
                if updatedChoice == 'y':
@@ -110,10 +110,10 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
             
             start_time = time.time()  
             results[name] = train_fn()
-            duration = time.time() - start_time  
+            duration = (time.time() - start_time) / 60 #secs to mins  
 
             print(f"{name} training completed in {duration:.2f} seconds.\n")
-            logging.info(f"Finished training {name} in {duration:.2f} seconds.")
+            logging.info(f"Finished training {name} in {duration:.2f}.")
             time.sleep(1)
 
         print("\n=== All models trained successfully! ===\n")
