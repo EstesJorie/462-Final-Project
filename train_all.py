@@ -15,7 +15,7 @@ TEST_CONFIG = {
         'cols': 10,
         'generations': 10000,
         'num_tribes': 5
-    }
+ç    }
 
 logFile = "train_all.log"
 if not os.path.exists(logFile):
@@ -31,7 +31,7 @@ print(f"Logging initialized. Check {logFile} for details.\n")
 def getModeSelection():
     """
     Returns:
-        bool: True if TEST_MODE, False if USER_MODE_
+        bool: True if TEST_MODE, False if USER_MODE
     """ 
     while True:
           print(f"Select mode:\n")
