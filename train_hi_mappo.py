@@ -45,7 +45,7 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
 
         # 🧠 High-level Manager selects abstract goals for each worker
         goal_ids, logp_goal = agent.select_goals(state)
-        env.last_goals = goal_ids.tolist()  # For environment bookkeeping
+        env.last_scores = goal_ids.tolist()  # For environment bookkeeping
 
         # Initialize a trajectory buffer for this episode
         traj = {
@@ -74,7 +74,7 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
 
         # Logging progress
         if gen % log_interval == 0:
-            print(f"\n===== Generation {gen} =====")
+            print(f"\n========== Generation {gen} ==========\n")
             env.render()  # Display current civilization state
             scores = env.compute_final_scores()
             score_log.append((gen, scores))

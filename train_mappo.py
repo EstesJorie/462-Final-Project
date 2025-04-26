@@ -64,7 +64,7 @@ def train_mappo(rows, cols, generations, num_tribes, seed=7, log_interval=100, s
 
         # === Logging progress and visualization ===
         if iteration % log_interval == 0:
-            print(f"\n========== Generation {iteration} ==========")
+            print(f"\n========== Generation {iteration} ==========\n")
             env.render()
             scores = env.compute_final_scores()
             score_log.append((iteration, scores))
