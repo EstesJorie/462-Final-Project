@@ -8,7 +8,7 @@ from civilisation_simulation_env_mixed import CivilisationSimulationMixed
 
 
 class MixedAgentSimulator:
-    def __init__(self, agents, agent_names=None, rows=10, cols=10, num_episodes=100, log_interval=10):
+    def __init__(self, agents, agent_names=None, rows=10, cols=10, num_episodes=5000, log_interval=10):
         """
         Args:
             agents (list): List of trained agent instances (MAPPO, Hi-MAPPO, QMIX, etc.)
@@ -26,7 +26,7 @@ class MixedAgentSimulator:
         self.log_interval = log_interval
         self.env = CivilisationSimulationMixed(rows, cols, len(agents), agents) 
 
-    def run(self, stepsPerEp=10, render=False, output_csv="sim_mixed__agent_scores.csv", log_actions=False):
+    def run(self, stepsPerEp=25, render=False, output_csv="sim_mixed__agent_scores.csv", log_actions=False):
         scoreLog = []
         actionLog = []  
 

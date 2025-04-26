@@ -69,8 +69,7 @@ class CivilisationSimulationMixed:
         return next_obs, rewards, done, {}
         
     def _compute_rewards(self, lambda_score=0.3):
-        # Initialize local rewards list for each agent (tribe)
-        local_rewards = [0.0] * self.num_agents
+        local_rewards = [0.0] * self.num_tribes
 
         # Traverse each grid cell to calculate local rewards
         for i in range(self.rows):
