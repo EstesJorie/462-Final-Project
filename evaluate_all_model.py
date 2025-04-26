@@ -66,14 +66,14 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
 
     # === Load trained QMIX model ===
     qmix_env = CivilizationEnv_QMIX(rows, cols, num_tribes)
-    state_dim = rows * cols * 3  
+    state_dim = (rows * cols * 3) 
     agent_dim = rows * cols * 3  
     action_dim = 3
     
     qmix_agent = QMIXAgent(
-        obs_dim=agent_dim,
+        obs_dim=agent_dim + 160,
         state_dim=state_dim,
-        act_dim=3,
+        act_dim=action_dim,
         n_agents=num_tribes,          
         hidden_dim=64,       
         buffer_size=10000,
