@@ -59,6 +59,7 @@ class CivilizationSimulation_ENV:
     def take_turn(self, tribe_actions):
         self.expansion_success = [0] * self.num_tribes
         self.population_before = [0] * self.num_tribes
+        self.expand_reward = [0.0] * self.num_tribes  # Reward given for successful or attempted expansions
         new_grid = [[Cell() for _ in range(self.cols)] for _ in range(self.rows)]
 
         # Record population before actions
@@ -88,7 +89,7 @@ class CivilizationSimulation_ENV:
 
                     # Action 2: Attempt to expand into neighboring cells
                     elif action == 2:
-                        if cell.food >= 3 and cell.population >= 2:  # Relaxed expansion condition
+                        if cell.food >= 5 and cell.population >= 2:  # Relaxed expansion condition
                             for ni, nj in self.neighbors(i, j):
                                 if self.grid[ni][nj].is_empty():
                                     # Place a new cell for the tribe

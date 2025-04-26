@@ -1,5 +1,5 @@
 
-# 🧠 Civilization Simulation with Multi-Agent Reinforcement Learning
+# Civilization Simulation with Multi-Agent Reinforcement Learning
 
 This project simulates a grid-based civilization environment where multiple "tribes" act as agents to gather resources, grow populations, and expand territory. It supports training with three multi-agent reinforcement learning algorithms:
 
@@ -9,6 +9,22 @@ This project simulates a grid-based civilization environment where multiple "tri
 
 Additionally, a random strategy baseline is included for performance comparison.
 
+> **Note:** To contribute to this repository, please follow the steps below:
+>
+> Fork the repository 
+> Clone the repository https://github.com/[USERNAME]/[REPO_FORK_NAME].git
+> Create a new branch on cloned repository* 
+>
+>```bash 
+>git checkout -b [new_branch]
+>```
+> Make changes, updates, and/or fixes. Once complete open a merge request on the original repository with details of update/changes/fixes. 
+>
+>*[YOUR_BRANCH ----PULL REQUEST---> ORIGINAL REPO (MAIN OR DEV)]*
+>
+> Wait for your request to be approved!
+>
+> * Previously existing branch names such as *[Main or Dev]* should not be used!
 ---
 
 ## 📁 Project Structure
@@ -93,6 +109,13 @@ Model save directories:
 - `trained_models/` (MAPPO)
 - `trained_models_qmix/` (QMIX)
 - `trained_models_hi_mappo/` (Hi-MAPPO)
+
+--- 
+## Contributors
+
+[EstesJorie](https://github.com/EstesJorie)
+[Kapibaris](https://github.com/Kapibaris)
+[zleihupo](https://github.com/zleihupo)
 
 ---
 

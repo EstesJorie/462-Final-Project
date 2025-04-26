@@ -1,15 +1,32 @@
 from train_hi_mappo import train_hi_mappo
+from train_hi_mappo_no_mcts import train_hi_mappo_no_mcts
 from train_qmix import train_qmix
 from train_mappo import train_mappo
 from GameController import GameController
+from tqdm import tqdm
+from enum import Enum, auto
+
+import logging
+import os
 import time
 
 TEST_CONFIG = {
-        'rows': 5,
-        'cols': 5,
-        'generations': 1000,
-        'num_tribes': 3
+        'rows': 10,
+        'cols': 10,
+        'generations': 10000,
+        'num_tribes': 5
     }
+
+logFile = "train_all.log"
+if not os.path.exists(logFile):
+    print(f"Log file '{logFile}' does not exist, creating a new one.\n")
+
+logging.basicConfig(filename= logFile,
+                    filemode = 'w',
+                    format = '%(asctime)s - %(levelname)s - %(message)s',
+                    level = logging.INFO,
+                    datefmt='%Y-%m-%d %H:%M:%S')
+print(f"Logging initialized. Check {logFile} for details.\n")
 
 def getModeSelection():
     """
@@ -24,11 +41,14 @@ def getModeSelection():
           print("Enter '1' for TEST MODE, '2' for USER MODE, or 'q' to see TEST CONFIG.\n")
           choice = input("Enter choice: ").strip().lower()
           if choice in ['1', '2']:
+               logging.info(f"User selected {choice} mode.")
+               logging.info(f"TEST_CONFIG: {TEST_CONFIG}")
                return choice == '1' # if choice = 1, then TRUE thus TEST_MODE = True
           elif choice == 'q':
                print(f"{TEST_CONFIG}\n")
                print("Do you want to update the TEST_CONFIG values? (y/n)\n")
                updatedChoice = input("Enter choice: ").strip().lower()
+               logging.info(f"User selected {updatedChoice} to update TEST_CONFIG.")
                if updatedChoice == 'y':
                     print("Updating TEST_CONFIG values...\n")
                     rows = int(input("Enter number of rows: "))
@@ -39,6 +59,8 @@ def getModeSelection():
                     TEST_CONFIG['cols'] = cols
                     TEST_CONFIG['generations'] = generations
                     TEST_CONFIG['num_tribes'] = num_tribes
+                    logging.info(f"Updated TEST_CONFIG: {TEST_CONFIG}")
+                    print(f"TEST_CONFIG updated to: {TEST_CONFIG}\n")
                continue
           raise ValueError("Invalid choice. Please enter 1, 2, or q.\n")
 
@@ -51,7 +73,7 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
         num_tribes (int) - Num of tribes to train
         test_mode (bool) - If True, use preset values for testing
     Returns:
-        tuple(mappo, hi_mappo, qmix) - Trained agents
+        tuple(mappo, hi_mappo, hi_mappo_no_mcts, qmix) - Trained agents
 
     Raises:
         Exception: If training fails for any model
@@ -74,41 +96,33 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
             generations = controller.getValidGenerations()
             num_tribes = controller.getValidTribeCount()
     try:
-        print("\n=== Training MAPPO ===\n")
-        mappo = train_mappo(
-            rows=rows,
-            cols=cols,
-            generations=generations,
-            num_tribes=num_tribes
-        )
-        print("MAPPO training completed.\n")
-        time.sleep(1)
+        models = [
+            ("MAPPO", lambda: train_mappo(rows=rows, cols=cols, generations=generations, num_tribes=num_tribes)),
+            ("Hi-MAPPO", lambda: train_hi_mappo(rows=rows, cols=cols, num_generations=generations, num_tribes=num_tribes)),
+            ("Hi-MAPPO No MCTS", lambda: train_hi_mappo_no_mcts(rows=rows, cols=cols, generations=generations, num_tribes=num_tribes)),
+            ("QMIX", lambda: train_qmix(rows=rows, cols=cols, num_generations=generations, num_tribes=num_tribes))
+        ]
 
-        print("\n=== Training Hi-MAPPO ===\n")
-        hi_mappo = train_hi_mappo(
-            rows=rows,
-            cols=cols,
-            generations=generations,
-            num_tribes=num_tribes
-        )
-        print("Hi-MAPPO training completed.\n")
-        time.sleep(1))
+        results = {}
+        for name, train_fn in tqdm(models, desc="Training All Models", unit="model"):
+            print(f"\n=== Training {name} ===\n")
+            logging.info(f"Started training {name}.")
+            
+            start_time = time.time()  
+            results[name] = train_fn()
+            duration = time.time() - start_time  
 
-        print("\n=== Training QMIX ===\n")
-        qmix = train_qmix(
-            rows=rows,
-            cols=cols,
-            generations=generations,
-            num_tribes=num_tribes
-        )
-        print("QMIX training completed.\n")
-        time.sleep(1)
+            print(f"{name} training completed in {duration:.2f} seconds.\n")
+            logging.info(f"Finished training {name} in {duration:.2f} seconds.")
+            time.sleep(1)
 
         print("\n=== All models trained successfully! ===\n")
-        return mappo, hi_mappo, qmix
+        return results.get("MAPPO"), results.get("Hi-MAPPO"), results.get("Hi-MAPPO No MCTS"), results.get("QMIX")
+
     except Exception as e:
-            print(f"Training failed: {str(e)}")
-            raise
+        print(f"Training failed: {str(e)}")
+        logging.error(f"Training failed: {e}")
+        raise
 
 if __name__ == "__main__":
     trainAllModels()

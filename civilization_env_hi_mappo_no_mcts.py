@@ -2,8 +2,10 @@ import random
 import numpy as np
 from civilisation_simulation_env import CivilizationSimulation_ENV
 
-SEED = 7  # Fixed seed for reproducibility
+# Fixed seed for reproducibility
+SEED = 7
 
+# Environment for hierarchical MAPPO-based civilization simulation
 class CivilizationEnv_HiMAPPO:
     def __init__(self, rows=5, cols=5, num_tribes=3, seed=None):
         self.rows = rows
@@ -42,25 +44,15 @@ class CivilizationEnv_HiMAPPO:
                 obs[i][j] = [c.population, c.food, c.tribe if c.tribe else 0]
         return obs
 
-    def step(self, actions, goals=None):
-        """
-        Execute one environment step based on agent actions.
-
-        Special part: `self.sim.take_turn(actions)` is a customized simulator update.
-        - It applies all agent actions simultaneously.
-        - Updates population, food, and territory of each tribe.
-        - Internally tracks expansion success and previous population for reward calculation.
-        """
-
-        self.sim.take_turn(actions)
-
-        obs = self._get_obs()
-
-        rewards = self._compute_rewards(goals)
-
-        done = False
+    # Advance the simulation by one step using agents' actions
+    def step(self, actions):
+        self.sim.take_turn(actions)            # Apply tribe actions to simulation
+        obs = self._get_obs()                  # Observe new state
+        rewards = self._compute_rewards()      # Calculate individual rewards
+        done = False                           # No terminal condition for now
         return obs, rewards, done, {}
 
+    # Compute per-agent rewards using a shaped reward formula
     def _compute_rewards(self, goals=None):
         """
         Calculate complex rewards combining multiple signals:
@@ -117,34 +109,7 @@ class CivilizationEnv_HiMAPPO:
         ]
 
         return mixed_rewards
-
-    def _update_reward_weights(self, current_scores):
-        """
-        Dynamically adjust reward shaping weights based on agent progress.
-
-        - If agents' average scores improved, slightly increase reward weights (positive reinforcement).
-        - If performance stagnated or dropped, slightly decay the weights (penalize wrong behaviors).
-
-        Purpose:
-        Help the training dynamically adapt over long periods without manual tuning.
-        """
-
-        avg_score = sum(current_scores) / len(current_scores)
-
-        if avg_score > self.last_avg_score:
-            self.weight_pop += 0.01
-            self.weight_food += 0.05
-            self.weight_survival += 0.05
-            self.weight_expand += 0.02
-            self.lambda_score += 0.005
-        else:
-            self.weight_pop *= 0.99
-            self.weight_food *= 0.97
-            self.weight_survival *= 0.98
-            self.weight_expand *= 0.98
-            self.lambda_score *= 0.99
-
-        self.last_avg_score = avg_score
+    
 
     def compute_final_scores(self, H=5, food_per_person=0.2):
         """
@@ -155,7 +120,6 @@ class CivilizationEnv_HiMAPPO:
 
         This score serves as an indicator of each tribe's long-term viability and success.
         """
-
         total_cells = self.rows * self.cols
         max_population_per_cell = 10
         scores = []
