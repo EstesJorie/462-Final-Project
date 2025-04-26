@@ -71,10 +71,10 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
     action_dim = 3
     
     qmix_agent = QMIXAgent(
-        obs_dim=300,
-        state_dim=300,
+        obs_dim=agent_dim,
+        state_dim=state_dim,
         act_dim=3,
-        n_agents=5,          
+        n_agents=num_tribes,          
         hidden_dim=64,       
         buffer_size=10000,
         batch_size=64,
