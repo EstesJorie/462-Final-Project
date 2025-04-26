@@ -45,7 +45,7 @@ class MixedAgentSimulator:
             if log_actions:
                 actionLog.append(ep_actions)
 
-            if render and ep % self.log_interval == 0:
+            if render and ep % 500 == 0:
                 self.env.render()
                 self.env.renderHeatmap(sPath=f"logs/heatmap_ep_{ep}.png")
                 print(f"Episode {ep}: Final Scores: {finalScores}")
