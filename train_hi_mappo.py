@@ -74,7 +74,7 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
 
         # Logging progress
         if gen % log_interval == 0:
-            print(f"\n===== Generation {gen} =====")
+            print(f"\n========== Generation {gen} ==========\n")
             env.render()  # Display current civilization state
             scores = env.compute_final_scores()
             score_log.append((gen, scores))

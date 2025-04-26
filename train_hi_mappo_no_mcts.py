@@ -82,7 +82,7 @@ def train_hi_mappo_no_mcts(rows=None, cols=None, generations=None, num_tribes=No
         loss_value = loss if isinstance(loss, (float, int)) else (loss.item() if loss is not None else 0.0)
 
         if gen % log_interval == 0:
-            print(f"\n===== Generation {gen} =====")
+            print(f"\n========== Generation {gen} ==========\n")
             env.render()
             scores = env._compute_rewards()
             score_log.append((gen, scores))

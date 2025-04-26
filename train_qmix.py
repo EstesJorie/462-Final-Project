@@ -41,6 +41,7 @@ def train_qmix(rows, cols, num_generations, num_tribes, seed=7, log_interval=100
     # Training Loop
     # =======================================
     pbar = tqdm(range(1, num_generations + 1), desc="Training QMIX", unit="gen")
+    scores = [0] * num_tribes  # Initialize scores
     for iteration in pbar:
         obs_raw = env.reset()
         state_raw = torch.tensor(obs_raw.flatten(), dtype=torch.float32)
@@ -80,7 +81,7 @@ def train_qmix(rows, cols, num_generations, num_tribes, seed=7, log_interval=100
 
         # === Periodic evaluation and logging ===
         if iteration % log_interval == 0:
-            print(f"\n========== Generation {iteration} ==========")
+            print(f"\n========== Generation {iteration} ==========\n")
             env.render()
             scores = env.compute_final_scores()
             score_log.append((iteration, scores))
