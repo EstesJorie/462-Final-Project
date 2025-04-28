@@ -4,6 +4,7 @@ from qmix import QMIXAgent
 from mixedAgentSimulator import MixedAgentSimulator
 import logging
 import os
+import gc
 import torch
 import time
 
@@ -76,6 +77,10 @@ qmixWrapped = QMIXSingleAgentWrapper(qmix)
 himappoWrapped = HiMAPPOWrapper(himappo)
 logging.info(f"Agents wrapped for single agent simulation.")
 
+gc.collect() #memory cleanuo
+if torch.cuda.is_available():
+    torch.cuda.empty_cache() #clear GPU memory
+
 agents = [mappo, himappoWrapped, qmixWrapped]
 agent_names = ["MAPPO", "HiMAPPO", "QMIX"]
 
@@ -91,4 +96,8 @@ logging.info(f"Simulation initialized with {len(agents)} agents: {agent_names}")
 
 sim.run(stepsPerEp=25, render=True, output_csv=outputFile)
 logging.info(f"Simulation completed. Results saved to {outputFile}")
+
+gc.collect() #memory cleanup post simulation
+if torch.cuda.is_available():
+    torch.cuda.empty_cache() #clear GPU memory
 sim.env.renderHeatmap(sPath="logs/final_territory_heatmap.png")

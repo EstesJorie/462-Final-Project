@@ -35,16 +35,16 @@ class MixedAgentSimulator:
            
             for ep in range(1, self.num_episodes + 1):
                 ep_actions = []
-                # Assume 'pop_score', 'food_score', 'territory_score' are calculated at each step
                 for _ in range(stepsPerEp):
                     self.env.step()
                     if log_actions:
                         ep_actions.append(self.env.actions_last_step)
                
-                pop_score = self.env.get_population_score()  # Example method to retrieve population score
-                food_score = self.env.get_food_score()  # Example method to retrieve food score
-                territory_score = self.env.get_territory_score()  # Example method to retrieve territory score
-                final_score = 0.5 * pop_score + 0.35 * territory_score + 0.15 * food_score
+                #call to mixed agent functions
+                pop_score = self.env.get_population_score()  
+                food_score = self.env.get_food_score() 
+                territory_score = self.env.get_territory_score()  
+                final_score = np.array(pop_score) * 0.5 + np.array(territory_score) * 0.35 + np.array(food_score) * 0.15 #array multiplication
 
                 # Log the results for each episode, turn, and agent
                 for agent_idx, agent_name in enumerate(self.agent_names):
@@ -63,6 +63,8 @@ class MixedAgentSimulator:
                 self.env.render()
                 self.env.renderHeatmap(sPath=f"logs/heatmap_run_{run_id}.png")
                 print(f"Run {run_id} complete.")
+
+            gc.collect()  # Garbage collection to free up memory
 
         # Create the output CSV with the desired format
         os.makedirs("logs", exist_ok=True)

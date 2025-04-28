@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import seaborn as sns
+import gc
 from civilisation_simulation_env import *
 import os
 
@@ -30,6 +31,7 @@ class CivilisationSimulationMixed:
         self.sim = CivilizationSimulation_ENV(self.rows, self.cols, self.num_tribes)
         self.grid = self.sim.grid
         self.last_scores = [0] * self.num_tribes
+        gc.collect()  
         return self._get_obs()
     
     def _get_obs(self):
@@ -166,6 +168,7 @@ class CivilisationSimulationMixed:
         plt.savefig(sPath, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Saved to {sPath}")
+        gc.collect()
 
     def get_population_score(self):
         return [agent.get_population() for agent in self.agents]
