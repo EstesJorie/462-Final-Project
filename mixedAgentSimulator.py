@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import gc
 from tqdm import tqdm
 from civilisation_simulation_env_mixed import CivilisationSimulationMixed
 

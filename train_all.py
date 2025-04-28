@@ -4,8 +4,7 @@ from train_qmix import train_qmix
 from train_mappo import train_mappo
 from GameController import GameController
 from tqdm import tqdm
-from enum import Enum, auto
-
+import gc
 import logging
 import os
 import time
@@ -127,6 +126,8 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
 
             print(f"{name} training completed in {duration:.2f} seconds.\n")
             logging.info(f"Finished training {name} in {duration:.2f}.")
+            gc.collect() #collection of leftover garbage objects (memory freeing)
+            logging.info(f"Garbage collection completed after training {name}.")
             time.sleep(1)
 
         print("\n=== All models trained successfully! ===\n")
