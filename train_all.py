@@ -7,7 +7,9 @@ from tqdm import tqdm
 import gc
 import logging
 import os
+import platform
 import time
+
 
 TEST_CONFIG = {
         'rows': 10,
@@ -35,6 +37,20 @@ logging.basicConfig(filename= logFile,
                     level = logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
 print(f"Logging initialized. Check {logFile} for details.\n")
+
+"""
+def playBeep():
+    current_os = platform.system().lower()
+
+    if current_os == "linux": # Linux
+        os.system("beep")
+    
+    elif current_os == "darwin": # macOS
+        os.system("osascript -e 'beep'")
+
+    else:
+        print(f"Unsupported OS: {current_os}")
+"""
 
 def getModeSelection():
     """
@@ -125,12 +141,13 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
             results[name] = train_fn() #call training function
             duration = (time.time() - start_time) / 60 #secs to mins  
 
-            print(f"{name} training completed in {duration:.2f} seconds.\n")
+            print(f"{name} training completed in {duration:.2f}.\n")
             logging.info(f"Finished training {name} in {duration:.2f}.")
             gc.collect() #collection of leftover garbage objects (memory freeing)
             logging.info(f"Garbage collection completed after training {name}.")
             time.sleep(1) #sleep for 1 second
 
+        #playBeep()
         print("\n=== All models trained successfully! ===\n")
         return results.get("MAPPO"), results.get("Hi-MAPPO"), results.get("Hi-MAPPO No MCTS"), results.get("QMIX")
 
