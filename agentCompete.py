@@ -1,11 +1,13 @@
 from mappo import MAPPOAgent
 from hi_mappo import HiMAPPOAgent
 from qmix import QMIXAgent
-from mixedAgentSimulator import MixedAgentSimulator
+from mixedAgentSimulator import MixedAgentSimulator, RandomAgent
+from civilisation_simulation_env_mixed import CivilisationSimulationMixed
 import logging
 import os
 import gc
 import torch
+import pandas as pd
 import time
 
 rows, cols = 10, 10
@@ -59,6 +61,8 @@ qmix.mix_net.load_state_dict(torch.load("trained_models_qmix/qmix_mixer.pth"))
 logging.info(f"QMIX agent loaded from trained_models_qmix/qmix_agent_0.pth and trained_models_qmix/qmix_mixer.pth")
 print(f"QMIX agent loaded from trained_models_qmix/qmix_agent_0.pth and trained_models_qmix/qmix_mixer.pth\n")
 
+random = RandomAgent(obs_dim=obs_dim, act_dim=act_dim, rows=rows, cols=cols, num_tribes=3)
+
 class QMIXSingleAgentWrapper:
     def __init__(self, qmix_agent):
         self.agent = qmix_agent
@@ -94,10 +98,19 @@ sim = MixedAgentSimulator(
 )
 logging.info(f"Simulation initialized with {len(agents)} agents: {agent_names}")
 
-sim.run(stepsPerEp=25, render=True, output_csv=outputFile)
+simResults = sim.run(stepsPerEp=25, render=True, output_csv=outputFile) or []
 logging.info(f"Simulation completed. Results saved to {outputFile}")
+
+randomData = random.evaluate() or []
+
+combinedData = simResults + randomData
+dfCombined = pd.DataFrame(combinedData)
+dfCombined.to_csv(outputFile, index=False)
+logging.info(f"Results saved to {outputFile}")
+print(f"Results saved to {outputFile}\n")
 
 gc.collect() #memory cleanup post simulation
 if torch.cuda.is_available():
     torch.cuda.empty_cache() #clear GPU memory
+    
 sim.env.renderHeatmap(sPath="logs/final_territory_heatmap.png")

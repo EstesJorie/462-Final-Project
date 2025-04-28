@@ -176,7 +176,7 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         # === Random Strategy Evaluation ===
         sim = CivilisationSimulation(rows, cols, num_tribes)
         for _ in range(10):
-            sim.take_turn()
+            sim.takeTurn()
         rand_score = 0
         for tribe in range(1, num_tribes + 1):
             territory = sum(cell.tribe == tribe for row in sim.grid for cell in row)

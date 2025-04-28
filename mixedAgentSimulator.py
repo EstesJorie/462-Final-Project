@@ -3,9 +3,69 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import pandas as pd
 import gc
+import torch 
+import random
 from tqdm import tqdm
 from civilisation_simulation_env_mixed import CivilisationSimulationMixed
+
+class RandomAgent:
+    def __init__(self, obs_dim, act_dim, rows, cols, num_tribes):
+        self.obs_dim = obs_dim  # Observation dimension
+        self.act_dim = act_dim  # Action dimension
+        self.rows = rows        # Grid rows
+        self.cols = cols        # Grid columns
+        self.num_tribes = num_tribes  # Number of tribes
+        self.random_data = []   
+
+    def act(self, obs):
+        # Select a random action (scalar from 0 to act_dim-1)
+        return torch.tensor(np.random.randint(0, self.act_dim))  #return as tensor
+
+    def evaluate(self):
+        random_data = []
+        
+        for run in range(1, 31): 
+            sim_random = CivilisationSimulationMixed(self.rows, self.cols, self.num_tribes)
+            
+            for _ in range(10):  # 10 steps
+                sim_random.step()
+
+            for tribe in range(1, self.num_tribes + 1):
+                territory = sum(cell.tribe == tribe for row in sim_random.grid for cell in row)
+                population = sum(cell.population for row in sim_random.grid for cell in row if cell.tribe == tribe)
+                food = sum(cell.food for row in sim_random.grid for cell in row if cell.tribe == tribe)
+                total_cells = self.rows * self.cols
+                max_population = total_cells * 10
+
+                if population > 0:
+                    territory_score = territory / total_cells
+                    population_score = population / max_population
+                    food_score = min((food / (population * 0.2 * 5)), 1.0)
+                    if food > population * 1.5:
+                        overstock_ratio = (food - population * 1.5) / (population * 1.5)
+                        penalty = min(overstock_ratio, 1.0)
+                        food_score *= (1 - penalty)
+                    final_score = (territory_score * 0.4 + population_score * 0.4 + food_score * 0.2) * 100
+                else:
+                    final_score = 0
+                    territory_score = 0
+                    population_score = 0
+                    food_score = 0
+
+                random_data.append({
+                    'run_id': run,
+                    'algorithm': 'Random',
+                    'turn': 10,  # For random agent, we simulate 10 steps
+                    'episode': 0,  # Set episode as 0 (if relevant to your case)
+                    'pop_score': population_score,
+                    'food_score': food_score,
+                    'territory_score': territory_score,
+                    'final_score': final_score
+                })
+
+        return random_data
 
 class MixedAgentSimulator:
     def __init__(self, agents, agent_names=None, rows=10, cols=10, num_episodes=5000, log_interval=10, n_runs_per_algo=30):
@@ -65,6 +125,7 @@ class MixedAgentSimulator:
                 print(f"Run {run_id} complete.")
 
             gc.collect()  # Garbage collection to free up memory
+            return data
 
         # Create the output CSV with the desired format
         os.makedirs("logs", exist_ok=True)
@@ -95,3 +156,4 @@ class MixedAgentSimulator:
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Performance plot saved to '{plot_path}'.")
+

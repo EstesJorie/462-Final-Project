@@ -23,39 +23,7 @@ os.makedirs(output_dir, exist_ok=True)
 # --------------------------------------
 np.random.seed(42)
 
-algorithms = ['Random', 'QMIX', 'MAPPO', 'HI-MAPPO']
-n_runs_per_algo = 30
-turns = 100
-training_episodes = 30
-
-score_params = {
-    'Random': {'mean': 70, 'std': 10},
-    'QMIX': {'mean': 60, 'std': 8},
-    'MAPPO': {'mean': 75, 'std': 6},
-    'HI-MAPPO': {'mean': 82, 'std': 8}
-}
-
-data = []
-for algo in algorithms:
-    for run in range(n_runs_per_algo):
-        for turn in range(1, turns + 1):
-            pop_score = np.clip(np.random.normal(score_params[algo]['mean'], score_params[algo]['std']), 0, 100)
-            food_score = np.clip(np.random.normal(score_params[algo]['mean'], score_params[algo]['std']), 0, 100)
-            territory_score = np.clip(np.random.normal(score_params[algo]['mean'], score_params[algo]['std']), 0, 100)
-            final_score = 0.5 * pop_score + 0.35 * territory_score + 0.15 * food_score
-            episode = np.random.randint(1, training_episodes + 1)  # Fake training episode info
-            data.append({
-                'run_id': run + 1,
-                'algorithm': algo,
-                'turn': turn,
-                'episode': episode,
-                'pop_score': pop_score,
-                'food_score': food_score,
-                'territory_score': territory_score,
-                'final_score': final_score
-            })
-
-df = pd.DataFrame(data)
+df = pd.read_csv("logs/sim_mixed_agent_scores.csv")
 
 # --------------------------------------
 # 📊 1. Descriptive Statistics
