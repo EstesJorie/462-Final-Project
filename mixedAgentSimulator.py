@@ -36,27 +36,17 @@ class RandomAgent:
                 total_cells = self.rows * self.cols
                 max_population = total_cells * 10
 
-                if population > 0:
-                    territory_score = territory / total_cells
-                    population_score = population / max_population
-                    food_score = min((food / (population * 0.2 * 5)), 1.0)
-                    if food > population * 1.5:
-                        overstock_ratio = (food - population * 1.5) / (population * 1.5)
-                        penalty = min(overstock_ratio, 1.0)
-                        food_score *= (1 - penalty)
-                    final_score = (territory_score * 0.4 + population_score * 0.4 + food_score * 0.2) * 100
-                else:
-                    final_score = 0
-                    territory_score = 0
-                    population_score = 0
-                    food_score = 0
+                pop_score = sim_random.get_population_score()  
+                food_score = sim_random.get_food_score() 
+                territory_score = sim_random.get_territory_score()  
+                final_score = np.array(pop_score) * 0.5 + np.array(territory_score) * 0.35 + np.array(food_score) * 0.15 #array multiplication
 
                 random_data.append({
                     'run_id': run,
                     'algorithm': 'Random',
                     'turn': 10,  # For random agent, we simulate 10 steps
                     'episode': 0,  # Set episode as 0 (if relevant to your case)
-                    'pop_score': population_score,
+                    'pop_score': pop_score,
                     'food_score': food_score,
                     'territory_score': territory_score,
                     'final_score': final_score
