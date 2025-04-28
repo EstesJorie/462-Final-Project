@@ -2,6 +2,7 @@ import torch
 import random
 import matplotlib.pyplot as plt
 import os
+import gc 
 import pandas as pd
 import numpy as np
 
@@ -154,11 +155,11 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         # === Hi-MAPPO No MCTS Evaluation ===
         obs_raw = hi_env_no_mcts.reset()
         state = torch.tensor(hi_env_no_mcts.get_global_state(), dtype=torch.float32)
+        obs_batch = [torch.tensor(o, dtype=torch.float32) for o in hi_env_no_mcts.get_agent_obs()]
         for _ in range(steps_per_episode):
-            obs_batch = [torch.tensor(o, dtype=torch.float32) for o in hi_env_no_mcts.get_agent_obs()]
             goals, _ = hi_agent_no_mcts.select_goals(state)
             actions, _ = hi_agent_no_mcts.select_actions(obs_batch, goals)
-            obs_raw, _, _, _ = hi_env_no_mcts.step(actions, goals=goals.tolist())
+            obs_raw, _, _, _ = hi_env_no_mcts.step(actions)
             state = torch.tensor(hi_env_no_mcts.get_global_state(), dtype=torch.float32)
         hi_no_mcts_scores.append(sum(hi_env_no_mcts.compute_final_scores()))
         hi_no_mcts_pops.append(sum(cell.population for row in hi_env_no_mcts.sim.grid for cell in row if cell.tribe))
@@ -176,7 +177,7 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         # === Random Strategy Evaluation ===
         sim = CivilisationSimulation(rows, cols, num_tribes)
         for _ in range(10):
-            sim.take_turn()
+            sim.takeTurn()
         rand_score = 0
         for tribe in range(1, num_tribes + 1):
             territory = sum(cell.tribe == tribe for row in sim.grid for cell in row)
@@ -197,8 +198,11 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
                 rand_score = 0
         rand_scores.append(rand_score)
         rand_pops.append(sum(cell.population for row in sim.grid for cell in row if cell.tribe))
-    if episode % log_interval == 0:
-        sm = smooth
+        
+        gc.collect()  #clear memory
+        
+        if episode % log_interval == 0:
+            print(f"Episode {episode}/{num_episodes} evaluated")
         sm = smooth
         if 'axs' not in locals():
             fig, axs = plt.subplots(2, 2, figsize=(14, 10))
@@ -249,12 +253,4 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig("evaluate_all_model_4plots.png")
     plt.show()
-
-# ======================================
-# Entry Point for Evaluation Script
-# ======================================
-if __name__ == "__main__":
-    rows, cols = 10, 10
-    num_episodes = 1000
-    num_tribes = 4
-    evaluate_all(rows, cols, num_episodes)
+    plt.close()

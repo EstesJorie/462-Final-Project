@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import seaborn as sns
+import gc
 from civilisation_simulation_env import *
 import os
 
@@ -30,6 +31,7 @@ class CivilisationSimulationMixed:
         self.sim = CivilizationSimulation_ENV(self.rows, self.cols, self.num_tribes)
         self.grid = self.sim.grid
         self.last_scores = [0] * self.num_tribes
+        gc.collect()  
         return self._get_obs()
     
     def _get_obs(self):
@@ -166,3 +168,28 @@ class CivilisationSimulationMixed:
         plt.savefig(sPath, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Saved to {sPath}")
+        gc.collect()
+
+    def get_population_score(self):
+        return [agent.get_population() for agent in self.agents]
+    
+    def get_food_score(self):
+        food_scores = []
+        for tribe_id in range(1, self.num_tribes + 1):
+            food_count = sum(1 for x in range(self.rows) for y in range(self.cols) 
+                            if self.grid[x][y].tribe == tribe_id and self.grid[x][y].food > 0)
+            max_possible_food = self.rows * self.cols  # theoretical maximum
+            food_score = food_count / max_possible_food if max_possible_food > 0 else 0
+            food_scores.append(food_score)
+        return food_scores
+
+    def get_territory_score(self):
+        territory_scores = []
+        total_cells = self.rows * self.cols
+        
+        for tribe_id in range(1, self.num_tribes + 1):
+            territory_count = sum(1 for x in range(self.rows) for y in range(self.cols) 
+                                if self.grid[x][y].tribe == tribe_id)
+            territory_score = territory_count / total_cells if total_cells > 0 else 0
+            territory_scores.append(territory_score)
+        return territory_scores
