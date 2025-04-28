@@ -14,7 +14,7 @@ TEST_CONFIG = {
         'cols': 10,
         'generations': 5000,
         'num_tribes': 5
-ç    }
+    }
 
 BOOT_SCREEN = r"""
     _                    _     _____          _                 
@@ -57,7 +57,7 @@ def getModeSelection():
                print("Do you want to update the TEST_CONFIG values? (y/n)\n")
                updatedChoice = input("Enter choice: ").strip().lower()
                logging.info(f"User selected {updatedChoice} to update TEST_CONFIG.")
-               if updatedChoice == 'y':
+               if updatedChoice == 'y': #updating TEST_CONFIG values
                     print("Updating TEST_CONFIG values...\n")
                     rows = int(input("Enter number of rows: "))
                     cols = int(input("Enter number of columns: "))
@@ -87,10 +87,11 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
         Exception: If training fails for any model
     """
     print(BOOT_SCREEN)
+    gc.collect() 
     time.sleep(2)
-    os.system('cls' if os.name == 'nt' else 'clear')
+    os.system('cls' if os.name == 'nt' else 'clear') #clear terminal/console
 
-    TEST_MODE = getModeSelection()
+    TEST_MODE = getModeSelection() #if TEST_MODE = True, then use TEST_CONFIG values
 
     if TEST_MODE:
         rows = TEST_CONFIG['rows']
@@ -108,33 +109,33 @@ def trainAllModels(rows=None, cols=None, generations=None, num_tribes=None):
             generations = controller.getValidGenerations()
             num_tribes = controller.getValidTribeCount()
     try:
-        models = [
+        models = [ #list of modules to train
             ("MAPPO", lambda: train_mappo(rows=rows, cols=cols, generations=generations, num_tribes=num_tribes)),
             ("Hi-MAPPO", lambda: train_hi_mappo(rows=rows, cols=cols, num_generations=generations, num_tribes=num_tribes)),
             ("Hi-MAPPO No MCTS", lambda: train_hi_mappo_no_mcts(rows=rows, cols=cols, generations=generations, num_tribes=num_tribes)),
             ("QMIX", lambda: train_qmix(rows=rows, cols=cols, num_generations=generations, num_tribes=num_tribes))
         ]
 
-        results = {}
+        results = {} #dict to store results
         for name, train_fn in tqdm(models, desc="Training All Models", unit="model"):
             print(f"\n=== Training {name} ===\n")
             logging.info(f"Started training {name}.")
             
             start_time = time.time()  
-            results[name] = train_fn()
+            results[name] = train_fn() #call training function
             duration = (time.time() - start_time) / 60 #secs to mins  
 
             print(f"{name} training completed in {duration:.2f} seconds.\n")
             logging.info(f"Finished training {name} in {duration:.2f}.")
             gc.collect() #collection of leftover garbage objects (memory freeing)
             logging.info(f"Garbage collection completed after training {name}.")
-            time.sleep(1)
+            time.sleep(1) #sleep for 1 second
 
         print("\n=== All models trained successfully! ===\n")
         return results.get("MAPPO"), results.get("Hi-MAPPO"), results.get("Hi-MAPPO No MCTS"), results.get("QMIX")
 
     except Exception as e:
-        print(f"Training failed: {str(e)}")
+        print(f"Training failed: {str(e)}") 
         logging.error(f"Training failed: {e}")
         raise
 

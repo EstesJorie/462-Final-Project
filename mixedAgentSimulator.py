@@ -6,17 +6,16 @@ import numpy as np
 import pandas as pd
 import gc
 import torch 
-import random
 from tqdm import tqdm
 from civilisation_simulation_env_mixed import CivilisationSimulationMixed
 
 class RandomAgent:
     def __init__(self, obs_dim, act_dim, rows, cols, num_tribes):
-        self.obs_dim = obs_dim  # Observation dimension
-        self.act_dim = act_dim  # Action dimension
-        self.rows = rows        # Grid rows
-        self.cols = cols        # Grid columns
-        self.num_tribes = num_tribes  # Number of tribes
+        self.obs_dim = obs_dim  #obs dimension
+        self.act_dim = act_dim  #action dimension
+        self.rows = rows        
+        self.cols = cols        
+        self.num_tribes = num_tribes 
         self.random_data = []   
 
     def act(self, obs):
@@ -28,10 +27,8 @@ class RandomAgent:
         
         for run in range(1, 31): 
             sim_random = CivilisationSimulationMixed(self.rows, self.cols, self.num_tribes)
-            
             for _ in range(10):  # 10 steps
                 sim_random.step()
-
             for tribe in range(1, self.num_tribes + 1):
                 territory = sum(cell.tribe == tribe for row in sim_random.grid for cell in row)
                 population = sum(cell.population for row in sim_random.grid for cell in row if cell.tribe == tribe)
