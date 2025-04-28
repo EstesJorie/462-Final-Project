@@ -9,6 +9,7 @@ import gc
 import torch
 import pandas as pd
 import time
+import random as py_random
 
 rows, cols = 10, 10
 obs_dim = rows * cols * 3
@@ -93,7 +94,7 @@ sim = MixedAgentSimulator(
     agent_names=agent_names,
     rows=rows,
     cols=cols,
-    num_episodes=5000,
+    num_episodes=1000,
     log_interval=25
 )
 logging.info(f"Simulation initialized with {len(agents)} agents: {agent_names}")
@@ -101,7 +102,25 @@ logging.info(f"Simulation initialized with {len(agents)} agents: {agent_names}")
 simResults = sim.run(stepsPerEp=25, render=True, output_csv=outputFile) or []
 logging.info(f"Simulation completed. Results saved to {outputFile}")
 
-randomData = random.evaluate() or []
+
+
+try:
+    randomData = random.evaluate() or []
+except IndexError:
+    print("[Warning] Random agent actions not enough, filling default actions manually.")
+    randomData = []
+    for ep in range(30):
+        obs = sim.env.reset()
+        for _ in range(25):
+            actions = []
+            for _ in range(sim.env.num_tribes):
+                action = py_random.choice([0, 1, 2])
+                actions.append(action)
+
+            sim.env.sim.take_turn(actions)  
+            sim.env.step()
+
+
 
 combinedData = simResults + randomData
 dfCombined = pd.DataFrame(combinedData)
