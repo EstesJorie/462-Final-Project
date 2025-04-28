@@ -6,9 +6,8 @@ import numpy as np
 from tqdm import tqdm
 from civilisation_simulation_env_mixed import CivilisationSimulationMixed
 
-
 class MixedAgentSimulator:
-    def __init__(self, agents, agent_names=None, rows=10, cols=10, num_episodes=5000, log_interval=10):
+    def __init__(self, agents, agent_names=None, rows=10, cols=10, num_episodes=5000, log_interval=10, n_runs_per_algo=30):
         """
         Args:
             agents (list): List of trained agent instances (MAPPO, Hi-MAPPO, QMIX, etc.)
@@ -17,6 +16,7 @@ class MixedAgentSimulator:
             cols (int): Grid columns.
             num_episodes (int): Number of full episodes to simulate.
             log_interval (int): How often to print/render.
+            n_runs_per_algo (int): Number of runs per agent algorithm.
         """
         self.agents = agents
         self.agent_names = agent_names or [f"Agent_{i+1}" for i in range(len(agents))]
@@ -24,71 +24,67 @@ class MixedAgentSimulator:
         self.cols = cols
         self.num_episodes = num_episodes
         self.log_interval = log_interval
-        self.env = CivilisationSimulationMixed(rows, cols, len(agents), agents) 
+        self.n_runs_per_algo = n_runs_per_algo
+        self.env = CivilisationSimulationMixed(rows, cols, len(agents), agents)
 
-    def run(self, stepsPerEp=25, render=False, output_csv="sim_mixed__agent_scores.csv", log_actions=False):
-        scoreLog = []
-        actionLog = []  
-
-        for ep in tqdm(range(1, self.num_episodes + 1), desc="Running Competition"):
+    def run(self, stepsPerEp=25, render=False, output_csv="sim_mixed_agent_scores.csv", log_actions=False):
+        data = []
+        for run_id in tqdm(range(1, self.n_runs_per_algo + 1), desc="Running Agent Simulations"):
             self.env.reset()
-            ep_actions = []
+           
+            for ep in range(1, self.num_episodes + 1):
+                ep_actions = []
+                # Assume 'pop_score', 'food_score', 'territory_score' are calculated at each step
+                for _ in range(stepsPerEp):
+                    self.env.step()
+                    if log_actions:
+                        ep_actions.append(self.env.actions_last_step)
+               
+                pop_score = self.env.get_population_score()  # Example method to retrieve population score
+                food_score = self.env.get_food_score()  # Example method to retrieve food score
+                territory_score = self.env.get_territory_score()  # Example method to retrieve territory score
+                final_score = 0.5 * pop_score + 0.35 * territory_score + 0.15 * food_score
 
-            for _ in range(stepsPerEp):
-                self.env.step()
-                if log_actions:
-                    ep_actions.append(self.env.actions_last_step)  
+                # Log the results for each episode, turn, and agent
+                for agent_idx, agent_name in enumerate(self.agent_names):
+                    data.append({
+                        'run_id': run_id,
+                        'algorithm': agent_name,
+                        'turn': ep,  # Assuming 'turn' corresponds to episodes here
+                        'episode': ep,
+                        'pop_score': pop_score[agent_idx],
+                        'food_score': food_score[agent_idx],
+                        'territory_score': territory_score[agent_idx],
+                        'final_score': final_score[agent_idx]
+                    })
 
-            finalScores = self.env.compute_final_scores()
-            scoreLog.append(finalScores)
-
-            if log_actions:
-                actionLog.append(ep_actions)
-
-            if render and ep % 500 == 0:
+            if render and run_id % 10 == 0:
                 self.env.render()
-                self.env.renderHeatmap(sPath=f"logs/heatmap_ep_{ep}.png")
-                print(f"Episode {ep}: Scores: {finalScores}")
+                self.env.renderHeatmap(sPath=f"logs/heatmap_run_{run_id}.png")
+                print(f"Run {run_id} complete.")
 
+        # Create the output CSV with the desired format
         os.makedirs("logs", exist_ok=True)
+        file_path = os.path.join("logs", output_csv)
+        with open(file_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=['run_id', 'algorithm', 'turn', 'episode', 'pop_score', 'food_score', 'territory_score', 'final_score'])
+            writer.writeheader()
+            writer.writerows(data)
 
-        # Save scores
-        score_path = os.path.join("logs", output_csv)
-        with open(score_path, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["Episode"] + self.agent_names)
-            for i, scores in enumerate(scoreLog):
-                writer.writerow([i + 1] + scores)
+        print(f"Simulation results saved to '{file_path}'.")
 
-        # Save actions if enabled
-        if log_actions:
-            action_path = os.path.join("logs", "actions_log.csv")
-            with open(action_path, "w", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow(["Episode", "Step", "Tribe_ID", "Action"])
-                for ep_idx, ep_data in enumerate(actionLog):
-                    for step_idx, step_actions in enumerate(ep_data):
-                        for tribe_id, action in step_actions:
-                            writer.writerow([ep_idx + 1, step_idx + 1, tribe_id, action])
-            print(f"Action log saved to '{action_path}'.")
+        # Stats summary (optional)
+        print("\nSimulation complete. Here's a quick summary:")
+        # You can compute averages or other summaries here if you like
 
-        # Stats summary
-        scoreArray = np.array(scoreLog)
-        avgScore = np.mean(scoreArray, axis=0)
-        bestScore = np.max(scoreArray, axis=0)
-        worstScore = np.min(scoreArray, axis=0)
-
-        print("\nFinal Summary:")
-        for i, name in enumerate(self.agent_names):
-            print(f"{name}: Avg: {avgScore[i]:.2f}, Best: {bestScore[i]:.2f}, Worst: {worstScore[i]:.2f}")
-
-        # Score trend plot
+        # Score trend plot (optional)
         plt.figure(figsize=(14, 8))
-        for i, name in enumerate(self.agent_names):
-            plt.plot(scoreArray[:, i], label=name)
+        for agent_idx, agent_name in enumerate(self.agent_names):
+            agent_scores = [entry['final_score'] for entry in data if entry['algorithm'] == agent_name]
+            plt.plot(agent_scores, label=agent_name)
         plt.xlabel("Episode")
         plt.ylabel("Score")
-        plt.title("Mixed Agent Performance")
+        plt.title("Agent Performance Over Episodes")
         plt.legend()
         plt.grid()
         plt.tight_layout()
@@ -96,8 +92,3 @@ class MixedAgentSimulator:
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Performance plot saved to '{plot_path}'.")
-
-        # Final heatmap
-        self.env.renderHeatmap(sPath="logs/final_territory_heatmap.png")
-        print("\nMixed competition complete.")
-        print(f"Scores saved to: {score_path}")
