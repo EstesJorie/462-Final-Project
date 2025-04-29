@@ -11,47 +11,41 @@ from civilisation_simulation_env_mixed import CivilisationSimulationMixed
 
 class RandomAgent:
     def __init__(self, obs_dim, act_dim, rows, cols, num_tribes):
-        self.obs_dim = obs_dim  #obs dimension
-        self.act_dim = act_dim  #action dimension
-        self.rows = rows        
-        self.cols = cols        
-        self.num_tribes = num_tribes 
-        self.random_data = []   
+        self.obs_dim = obs_dim
+        self.act_dim = act_dim
+        self.rows = rows
+        self.cols = cols
+        self.num_tribes = num_tribes
+        self.random_data = []
 
-    def act(self, obs):
-        # Select a random action (scalar from 0 to act_dim-1)
-        return torch.tensor(np.random.randint(0, self.act_dim))  #return as tensor
-
+    def select_action(self, obs_batch):
+        return torch.randint(0, self.act_dim, (1,)).item()
+    
     def evaluate(self):
         random_data = []
         
-        for run in range(1, 31): 
+        for run in range(1, 31):
             sim_random = CivilisationSimulationMixed(self.rows, self.cols, self.num_tribes)
-            for _ in range(10):  # 10 steps
-                sim_random.step()
-            for tribe in range(1, self.num_tribes + 1):
-                territory = sum(cell.tribe == tribe for row in sim_random.grid for cell in row)
-                population = sum(cell.population for row in sim_random.grid for cell in row if cell.tribe == tribe)
-                food = sum(cell.food for row in sim_random.grid for cell in row if cell.tribe == tribe)
-                total_cells = self.rows * self.cols
-                max_population = total_cells * 10
+            for step in range(10):  # 10 steps
+                sim_random.step()  
+                    
+            pop_score = sim_random.get_population_score()
+            food_score = sim_random.get_food_score()
+            territory_score = sim_random.get_territory_score()
+            final_score = np.array(pop_score) * 0.5 + np.array(territory_score) * 0.35 + np.array(food_score) * 0.15
 
-                pop_score = sim_random.get_population_score()  
-                food_score = sim_random.get_food_score() 
-                territory_score = sim_random.get_territory_score()  
-                final_score = np.array(pop_score) * 0.5 + np.array(territory_score) * 0.35 + np.array(food_score) * 0.15 #array multiplication
-
+            for tribe in range(self.num_tribes):
                 random_data.append({
                     'run_id': run,
                     'algorithm': 'Random',
-                    'turn': 10,  # For random agent, we simulate 10 steps
-                    'episode': 0,  # Set episode as 0 (if relevant to your case)
-                    'pop_score': pop_score,
-                    'food_score': food_score,
-                    'territory_score': territory_score,
-                    'final_score': final_score
+                    'turn': 10,
+                    'episode': 0,
+                    'pop_score': pop_score[tribe],
+                    'food_score': food_score[tribe],
+                    'territory_score': territory_score[tribe],
+                    'final_score': final_score[tribe]
                 })
-
+        
         return random_data
 
 class MixedAgentSimulator:
@@ -78,7 +72,7 @@ class MixedAgentSimulator:
     def run(self, stepsPerEp=25, render=False, output_csv="sim_mixed_agent_scores.csv", log_actions=False):
         data = []
         for run_id in tqdm(range(1, self.n_runs_per_algo + 1), desc="Running Agent Simulations"):
-            self.env.reset()
+            self.env.reset() #reset environment for each run 
            
             for ep in range(1, self.num_episodes + 1):
                 ep_actions = []
@@ -93,7 +87,7 @@ class MixedAgentSimulator:
                 territory_score = self.env.get_territory_score()  
                 final_score = np.array(pop_score) * 0.5 + np.array(territory_score) * 0.35 + np.array(food_score) * 0.15 #array multiplication
 
-                # Log the results for each episode, turn, and agent
+                #log the results for each episode, turn, and agent
                 for agent_idx, agent_name in enumerate(self.agent_names):
                     data.append({
                         'run_id': run_id,
@@ -111,7 +105,7 @@ class MixedAgentSimulator:
                 self.env.renderHeatmap(sPath=f"logs/heatmap_run_{run_id}.png")
                 print(f"Run {run_id} complete.")
 
-            gc.collect()  # Garbage collection to free up memory
+            gc.collect()  # garbage collection to free up memory
             return data
 
         # Create the output CSV with the desired format

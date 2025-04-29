@@ -73,12 +73,17 @@ class CivilizationSimulation_ENV:
         for i in range(self.rows):
             for j in range(self.cols):
                 cell = self.grid[i][j]
-                if cell.population > 0:
+                if cell.population > 0 and cell.tribe is not None:
                     tribe_id = cell.tribe
-                    action = tribe_actions[tribe_id - 1]  # Get action for this tribe
+                    tribe_index = tribe_id - 1
+                    if 0 <= tribe_index < len(tribe_actions):
+                        action = tribe_actions[tribe_index]
+                    else:
+                        print(f"[WARNING] Skipping invalid tribe_id={tribe_id} (actions length={len(tribe_actions)})")
+                        continue  # 
 
                     # Action 0: Harvest food based on efficiency
-                    if action == 0:
+                    if tribe_index == 0:                        
                         cell.food += cell.get_efficiency()
 
                     # Action 1: Grow population if enough food is available

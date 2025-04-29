@@ -77,12 +77,17 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=1000, log_interval=100):
         act_dim=action_dim,
         n_agents=num_tribes,   
         hidden_dim=64,        # Agent network hidden dim
-        mixer_hidden_dim=200, # Mixer network hidden dim
+        mixer_hidden_dim=250, # Mixer network hidden dim
         buffer_size=10000,
         batch_size=64,
         lr=1e-3,
         gamma=0.99
     )
+    print(f"Agent Network Input dim: {agent_dim}")
+    print(f"State dim: {state_dim}")
+    print("Mixer Network dimensions:")
+    print(f"- Input dim: {state_dim}")
+    print(f"- Hidden dim: {qmix_agent.mixer_hidden_dim}")
 
     try:
         for i, net in enumerate(qmix_agent.agent_nets):
