@@ -1,28 +1,28 @@
-
-# Civilization Simulation with Multi-Agent Reinforcement Learning
+  # Civilization Simulation with Multi-Agent Reinforcement Learning
 
 This project simulates a grid-based civilization environment where multiple "tribes" act as agents to gather resources, grow populations, and expand territory. It supports training with three multi-agent reinforcement learning algorithms:
 
 - MAPPO (Multi-Agent PPO)
 - QMIX (Value Decomposition for Cooperative Learning)
-- Hi-MAPPO (Hierarchical MAPPO with goal-driven planning)
+- Hi-MAPPO (Hierarchical MAPPO with Monte Carlo Tree Search)
+- Hi-MAPPO No MCTS (Hierarchical MAPPO with goal-driven planning)
 
 Additionally, a random strategy baseline is included for performance comparison.
 
 > **Note:** To contribute to this repository, please follow the steps below:
 >
-> Fork the repository 
-> Clone the repository https://github.com/[USERNAME]/[REPO_FORK_NAME].git
-> Create a new branch on cloned repository* 
+> - Fork the repository 
+> - Clone the repository https://github.com/[USERNAME]/[REPO_FORK_NAME].git
+> - Create a new branch on cloned repository* 
 >
 >```bash 
 >git checkout -b [new_branch]
 >```
-> Make changes, updates, and/or fixes. Once complete open a merge request on the original repository with details of update/changes/fixes. 
+> - Make changes, updates, and/or fixes. Once complete open a merge request on the original repository with details of update/changes/fixes. 
 >
->*[YOUR_BRANCH ----PULL REQUEST---> ORIGINAL REPO (MAIN OR DEV)]*
+>>*[YOUR_BRANCH ----PULL REQUEST---> ORIGINAL REPO (MAIN OR DEV)]*
 >
-> Wait for your request to be approved!
+> - Wait for your request to be approved!
 >
 > * Previously existing branch names such as *[Main or Dev]* should not be used!
 ---
@@ -33,7 +33,6 @@ Additionally, a random strategy baseline is included for performance comparison.
 > 2. Verify that the trained model folders exist, then run *[agentCompete.py]*
 > 3. For analysis, run *[Analysis.py]*
 > 4. For model evaluation, run *[evaluate_all_model.py]*
-
 
 ## 🕹️ Action Space
 
@@ -57,46 +56,10 @@ Each episode consists of 10 simulation steps. The goal is to maximize:
 |--------------|-------------|
 | **MAPPO**    | Each agent has an independent actor network and shares a centralized critic; trained via PPO |
 | **QMIX**     | Centralized training with decentralized execution using value decomposition |
-| **Hi-MAPPO** | A hierarchical approach where a high-level manager selects goals (harvest/grow/expand) and low-level workers execute actions |
+| **Hi-MAPPO** | A hierarchical framework where a high-level policy (Hi-MAPPO) sets strategic goals, and low-level planning uses **Monte Carlo Tree Search (MCTS)** to explore and select optimal action sequences to achieve those goals |
+| **Hi-MAPPO without MCTS** | A hierarchical approach where a high-level manager selects goals (harvest/grow/expand) and low-level workers execute actions |
 
 Each algorithm supports full training loops, model saving, and reloading.
-
----
-
-## 📈 Evaluation
-
-Run the following command to compare all agents' performance:
-
-```bash
-python evaluate_all_model.py
-```
-
-You will be prompted to enter:
-- Grid size (e.g. `5 5`)
-- Number of generations (e.g. `1000`)
-- Number of initial tribes (e.g. `3`)
-
-The script generates plots comparing:
-- Total population and food across methods
-- Occupied cell count (territory expansion)
-- Output image: `evaluate_all_model_smoothed.png`
-
----
-
-## 🏁 Training
-
-Run the following script to train the agents:
-
-```bash
-python train_all.py
-```
-
-The script can be configured to either run in Test or User mode. Test mode uses predetermined values for each parameter as detailed in this README. User mode allows the user to enter their own custom values for each parameter.  
-
-Model save directories:
-- `trained_models/` (MAPPO)
-- `trained_models_qmix/` (QMIX)
-- `trained_models_hi_mappo/` (Hi-MAPPO)
 
 --- 
 ## Contributors
@@ -104,15 +67,5 @@ Model save directories:
 [EstesJorie](https://github.com/EstesJorie)
 [Kapibaris](https://github.com/Kapibaris)
 [zleihupo](https://github.com/zleihupo)
-
----
-
-## 💡 Customization Tips
-
-- Modify reward functions in the `_compute_rewards()` method of each `*_env_*.py`
-- Add new actions or goals by extending `hi_mappo.py` and the environment
-- Tweak network structures and training parameters in `mappo.py`, `qmix.py`, `hi_mappo.py`
-- The random strategy may perform relatively well by opportunistically expanding into available cells.
-- To improve the performance of learned policies, consider reward shaping or rule-based enhancements to better guide agents toward intended behaviors.
 
 ---
