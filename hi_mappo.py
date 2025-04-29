@@ -11,11 +11,8 @@ random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-# ======================================
-# High-level policy (Manager)
-# Outputs a probability distribution over abstract goals
-# ======================================
 class HighLevelPolicy(nn.Module):
+    # High-level manager: output goal distribution based on global state
     def __init__(self, state_dim, goal_dim, hidden_dim=64):
         super().__init__()
         self.policy = nn.Sequential(
@@ -28,11 +25,8 @@ class HighLevelPolicy(nn.Module):
     def forward(self, state):
         return self.policy(state)
 
-# ======================================
-# Low-level policy (Worker)
-# Outputs action probabilities based on agent's observation and goal
-# ======================================
 class LowLevelPolicy(nn.Module):
+    # Low-level worker: select actions based on local obs and goal
     def __init__(self, obs_dim, goal_dim, act_dim, hidden_dim=64):
         super().__init__()
         self.policy = nn.Sequential(
@@ -46,11 +40,8 @@ class LowLevelPolicy(nn.Module):
         x = torch.cat([obs, goal_onehot], dim=-1)
         return self.policy(x)
 
-# ======================================
-# Hi-MAPPO Agent
-# Coordinates high-level manager and multiple low-level workers
-# ======================================
 class HiMAPPOAgent:
+    # Hi-MAPPO agent: manages high-level and low-level policies
     def __init__(self, state_dim, obs_dim, goal_dim, act_dim, num_agents, hidden_dim=64, lr=3e-4):
         self.num_agents = num_agents
         self.goal_dim = goal_dim
@@ -61,14 +52,9 @@ class HiMAPPOAgent:
 
     def select_goals(self, state):
         """
-        Sample abstract goals for each agent based on the global state.
+        Manager samples a goal for each agent based on the global state.
 
-        - The manager outputs a probability distribution over goals.
-        - A goal is sampled for each agent independently.
-        - Also returns the log-probabilities for later PPO update.
-
-        Purpose:
-        Decouple high-level intention (goal selection) from low-level actions.
+        Returns sampled goals and log-probabilities for PPO update.
         """
         probs = self.manager(state)
         dist = Categorical(probs)
@@ -78,13 +64,7 @@ class HiMAPPOAgent:
 
     def select_actions(self, obs_batch, goal_ids):
         """
-        Given agent observations and assigned goals, select actions.
-
-        - Each worker conditions its policy on (observation + one-hot goal).
-        - Workers act independently, based on the goal provided by the manager.
-
-        Purpose:
-        Introduce goal conditioning into low-level decision-making.
+        Each worker selects an action conditioned on its observation and assigned goal.
         """
         actions = []
         logps = []
@@ -102,54 +82,40 @@ class HiMAPPOAgent:
 
     def update(self, trajs):
         """
-        Perform policy updates for both manager and workers.
+        Update manager and worker policies based on collected trajectories.
 
-        Manager Update:
-        - Use PPO clipped surrogate objective to improve goal selection.
-        - Add entropy bonus to encourage exploration of goals.
-
-        Worker Update:
-        - Supervised REINFORCE: workers maximize expected returns conditioned on goals.
-        - No value function, direct policy gradient based on returns.
-
-        Inputs:
-        - trajs: A list of trajectory dictionaries, each containing
-            'state', 'goal', 'logp_goal', 'obs', 'actions', 'rewards'
+        Manager: PPO-style update to improve goal selection.
+        Workers: Supervised policy gradient based on goal-conditioned returns.
         """
-
-        # --- Manager PPO Update ---
         states = torch.stack([t['state'] for t in trajs])
         goals = torch.stack([t['goal'] for t in trajs])
         log_probs = torch.stack([t['logp_goal'] for t in trajs])
         rewards = torch.tensor([np.mean(t['rewards']) for t in trajs])
+
         advantages = rewards - rewards.mean()
 
         dist = Categorical(self.manager(states))
         new_log_probs = dist.log_prob(goals[:, 0])
-
-        entropy = dist.entropy().mean()  # Add entropy regularization to promote goal diversity
+        entropy = dist.entropy().mean()  # encourage goal exploration
 
         ratio = torch.exp(new_log_probs - log_probs[:, 0].detach())
 
         manager_loss = -torch.min(
             ratio * advantages,
-            torch.clamp(ratio, 0.8, 1.2) * advantages  # PPO clipping to stabilize updates
+            torch.clamp(ratio, 0.8, 1.2) * advantages
         ).mean()
-
-        manager_loss = manager_loss - 0.01 * entropy  # Entropy bonus
+        manager_loss = manager_loss - 0.01 * entropy  # add entropy bonus
 
         self.manager_optim.zero_grad()
         manager_loss.backward()
         self.manager_optim.step()
 
-        # --- Worker Policy Updates ---
         total_worker_loss = 0
         for i in range(self.num_agents):
-            # Collect all observations and actions for agent i
+            # Update worker i
             obs_i = torch.cat([torch.stack(t['obs'][i]) for t in trajs], dim=0)
             actions_i = torch.tensor([a for t in trajs for a in t['actions'][i]])
 
-            # Each action is associated with a goal during training
             goal_ids_i = torch.tensor([
                 t['goal'][i].item() for t in trajs for _ in range(len(t['actions'][i]))
             ])
@@ -172,3 +138,6 @@ class HiMAPPOAgent:
             total_worker_loss += worker_loss.item()
 
         return manager_loss.item() + total_worker_loss / self.num_agents
+
+        
+
