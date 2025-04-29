@@ -3,8 +3,10 @@ import random
 import matplotlib.pyplot as plt
 import os
 import gc
+import gc
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 from tqdm import tqdm
 
 # === Custom Environments and Agents ===
@@ -16,7 +18,9 @@ from mappo import MAPPOAgent
 from qmix import QMIXAgent
 from hi_mappo import HiMAPPOAgent
 from CivilisationSimulation2 import CivilisationSimulation
+from CivilisationSimulation2 import CivilisationSimulation
 
+# set seed for reproducibility
 # set seed for reproducibility
 SEED = 7
 random.seed(SEED)
@@ -24,6 +28,7 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 
 def count_tribe_cells(grid):
+    """Count number of occupied cells per tribe."""
     """Count number of occupied cells per tribe."""
     tribe_cells = {}
     for row in grid:
@@ -33,6 +38,7 @@ def count_tribe_cells(grid):
     return [tribe_cells.get(i + 1, 0) for i in range(3)]
 
 def smooth(data, window=50):
+    """Simple moving average smoothing."""
     """Simple moving average smoothing."""
     return pd.Series(data).rolling(window, min_periods=1).mean()
 
@@ -88,6 +94,16 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=5000, log_interval=100, sa
 
     pbar = tqdm(total=num_episodes, desc="Evaluating", dynamic_ncols=True)
 
+    # initialize logs
+    logs = {key: [] for key in [
+        'mappo_pops', 'qmix_pops', 'hi_pops', 'rand_pops', 'hi_no_mcts_pops',
+        'mappo_foods', 'qmix_foods', 'hi_foods', 'rand_foods', 'hi_no_mcts_foods',
+        'mappo_cells', 'qmix_cells', 'hi_cells', 'rand_cells', 'hi_no_mcts_cells',
+        'mappo_scores', 'qmix_scores', 'hi_scores', 'rand_scores', 'hi_no_mcts_scores'
+    ]}
+
+    pbar = tqdm(total=num_episodes, desc="Evaluating", dynamic_ncols=True)
+
     for episode in range(1, num_episodes + 1):
         # MAPPO
         obs_raw = mappo_env.reset()
@@ -99,7 +115,12 @@ def evaluate_all(rows, cols, num_tribes, num_episodes=5000, log_interval=100, sa
         logs['mappo_pops'].append(sum(cell.population for row in mappo_env.sim.grid for cell in row if cell.tribe))
         logs['mappo_foods'].append(sum(cell.food for row in mappo_env.sim.grid for cell in row if cell.tribe))
         logs['mappo_cells'].append(sum(count_tribe_cells(mappo_env.sim.grid)))
+        logs['mappo_scores'].append(sum(mappo_env.compute_final_scores()))
+        logs['mappo_pops'].append(sum(cell.population for row in mappo_env.sim.grid for cell in row if cell.tribe))
+        logs['mappo_foods'].append(sum(cell.food for row in mappo_env.sim.grid for cell in row if cell.tribe))
+        logs['mappo_cells'].append(sum(count_tribe_cells(mappo_env.sim.grid)))
 
+        # QMIX
         # QMIX
         obs_raw = qmix_env.reset()
         for _ in range(steps_per_episode):

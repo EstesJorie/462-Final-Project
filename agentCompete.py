@@ -99,7 +99,7 @@ sim = MixedAgentSimulator(
     agent_names=agent_names,
     rows=rows,
     cols=cols,
-    num_episodes=5000,
+    num_episodes=1000,
     log_interval=25
 )
 logging.info(f"Simulation initialized with {len(agents)} agents: {agent_names}")
