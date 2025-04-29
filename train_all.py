@@ -15,7 +15,7 @@ TEST_CONFIG = {
         'rows': 10,
         'cols': 10,
         'generations': 5000,
-        'num_tribes': 5
+        'num_tribes': 1
     }
 
 BOOT_SCREEN = r"""

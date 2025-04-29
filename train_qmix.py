@@ -117,4 +117,4 @@ def train_qmix(rows, cols, num_generations, num_tribes, seed=7, log_interval=100
     print("✅ Score logs saved as 'qmix_score_log.csv'.")
 
 if __name__ == "__main__":
-    train_qmix(rows=10, cols=10, num_generations=1000, num_tribes=5)
+    train_qmix(rows=10, cols=10, num_generations=1000, num_tribes=1)
