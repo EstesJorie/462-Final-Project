@@ -27,25 +27,13 @@ Additionally, a random strategy baseline is included for performance comparison.
 > * Previously existing branch names such as *[Main or Dev]* should not be used!
 ---
 
-## 📁 Project Structure
+## STEPS:
 
-```
-.
-├── civilisation_simulation_env.py         # Core simulation environment (grid, tribes, actions)
-├── civilization_env_mappo.py             # MAPPO-compatible environment wrapper
-├── civilization_env_qmix.py              # QMIX-compatible environment wrapper
-├── civilization_env_hi_mappo.py          # Hi-MAPPO-compatible environment wrapper
-├── mappo.py                              # MAPPO agent implementation
-├── qmix.py                               # QMIX agent implementation
-├── hi_mappo.py                           # Hi-MAPPO agent (manager + workers)
-├── train_mappo.py                        # MAPPO training script
-├── train_qmix.py                         # QMIX training script
-├── train_hi_mappo.py                     # Hi-MAPPO training script
-├── train_all.py                          # Trains on all models (MAPPO/HI-MAPPO/QMIX)
-├── evaluate_all_model.py                 # Evaluation script comparing MAPPO/QMIX/Hi-MAPPO/Random
-```
+> 1. After cloning/downloading the repo, run *[train_all.py]*
+> 2. Verify that the trained model folders exist, then run *[agentCompete.py]*
+> 3. For analysis, run *[Analysis.py]*
+> 4. For model evaluation, run *[evaluate_all_model.py]*
 
----
 
 ## 🕹️ Action Space
 
