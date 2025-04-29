@@ -7,26 +7,9 @@ import numpy as np
 from tqdm import tqdm
 from hi_mappo import HiMAPPOAgent
 from civilization_env_hi_mappo import CivilizationEnv_HiMAPPO
+from mcts_hi_mappo import MCTS
 
 def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval=100, save_dir="trained_models_hi_mappo"):
-    """
-    Train a Hi-MAPPO agent in the Civilization environment.
-
-    Args:
-        rows, cols: size of the map
-        num_generations: total number of training generations
-        num_tribes: number of independent agents (tribes)
-        seed: random seed for reproducibility
-        log_interval: how often to log scores and render
-        save_dir: directory to save trained models
-
-    Training process:
-    - Each generation = reset environment + collect a trajectory
-    - Manager selects high-level goals for workers
-    - Workers act based on goal-conditioned policy
-    - Update manager and workers using collected trajectory
-    - Save models and score logs after training
-    """
     # set seeds for full reproducibility
     random.seed(seed)
     np.random.seed(seed)
@@ -46,15 +29,26 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
     score_log = []
 
     # main training loop
-    pbar = tqdm(range(1, num_generations + 1), desc="Training HI-MAPPO", unit="gen")
+    pbar = tqdm(range(1, num_generations + 1), desc="Training HI-MAPPO (MCTS)", unit="gen")
     for gen in pbar:
         env.reset()
 
         state = torch.tensor(env.get_global_state(), dtype=torch.float32)
-        obs_batch = [torch.tensor(o, dtype=torch.float32) for o in env.get_agent_obs()]
 
-        # manager samples goals for each agent
-        goal_ids, logp_goal = agent.select_goals(state)
+        # === Select goals ===
+        if gen % 20 == 0:
+            # Every 20 generations, use MCTS
+            goal_ids = []
+            for i in range(num_tribes):
+                mcts = MCTS(agent, env, state_tensor=state, num_simulations=10)  # reduced simulations to 10
+                best_goal = mcts.run()
+                goal_ids.append(best_goal)
+            goal_ids = torch.tensor(goal_ids)
+            logp_goal = torch.zeros(num_tribes)  # MCTS does not give log probabilities
+        else:
+            # Other generations, sample goals directly
+            goal_ids, logp_goal = agent.select_goals(state)
+
         env.last_scores = goal_ids.tolist()
 
         # initialize trajectory buffer
@@ -95,7 +89,7 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
     # save models and training logs
     os.makedirs(save_dir, exist_ok=True)
 
-    score_log_path = os.path.join(save_dir, "hi_mappo_score_log.csv")
+    score_log_path = os.path.join(save_dir, "hi_mappo_score_log_mcts.csv")
     with open(score_log_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Generation"] + [f"Tribe_{i+1}_Score" for i in range(num_tribes)])
@@ -106,8 +100,8 @@ def train_hi_mappo(rows, cols, num_generations, num_tribes, seed=7, log_interval
         torch.save(net.state_dict(), os.path.join(save_dir, f"worker_{i}.pth"))
     torch.save(agent.manager.state_dict(), os.path.join(save_dir, "manager.pth"))
 
-    print("✅ Hi-MAPPO model and score log saved.")
+    print("\u2705 Hi-MAPPO (with MCTS) model and score log saved.")
 
 if __name__ == "__main__":
     # Example usage
-    train_hi_mappo(rows=10, cols=10, num_generations=1000, num_tribes=4)
+    train_hi_mappo(rows=10, cols=10, num_generations=1000, num_tribes=5)
