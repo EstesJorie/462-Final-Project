@@ -7,7 +7,7 @@ import gc
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from tqdm import tqdm
+
 
 # === Custom Environments and Agents ===
 from civilization_env_mappo import CivilizationEnv_MAPPO
@@ -17,7 +17,6 @@ from civilization_env_hi_mappo_no_mcts import CivilizationEnv_HiMAPPO as Civiliz
 from mappo import MAPPOAgent
 from qmix import QMIXAgent
 from hi_mappo import HiMAPPOAgent
-from CivilisationSimulation2 import CivilisationSimulation
 from CivilisationSimulation2 import CivilisationSimulation
 
 # set seed for reproducibility
