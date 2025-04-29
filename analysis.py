@@ -23,7 +23,7 @@ os.makedirs(output_dir, exist_ok=True)
 # --------------------------------------
 np.random.seed(42)
 
-df = pd.read_csv("logs/sim_mixed_agent_scores.csv")
+df = pd.read_csv("mixed_agent_results.csv")
 
 # --------------------------------------
 # 📊 1. Descriptive Statistics
@@ -41,6 +41,7 @@ for algo in df['algorithm'].unique():
 # --------------------------------------
 # 🔬 3. ANOVA and Tukey Post-Hoc Test
 # --------------------------------------
+algorithms = df['algorithm'].unique()
 anova_result = stats.f_oneway(*[df[df['algorithm'] == a]['final_score'] for a in algorithms])
 print("\nANOVA F-statistic:", anova_result.statistic, "p-value:", anova_result.pvalue)
 
@@ -51,7 +52,7 @@ print(tukey)
 # 📈 4. Learning Curves: Final Score over Turns
 # --------------------------------------
 plt.figure(figsize=(10, 6))
-sns.lineplot(data=df, x="turn", y="final_score", hue="algorithm", ci='sd')
+sns.lineplot(data=df, x="turn", y="final_score", hue="algorithm", errorbar='sd')
 plt.title("Final Score over Turns")
 plt.xlabel("Turn")
 plt.ylabel("Final Score")
@@ -63,7 +64,7 @@ plt.close()
 # 📈 5. Score over Training Episodes
 # --------------------------------------
 plt.figure(figsize=(10, 6))
-sns.lineplot(data=df, x="episode", y="final_score", hue="algorithm", ci="sd")
+sns.lineplot(data=df, x="episode", y="final_score", hue="algorithm", errorbar="sd")
 plt.title("Final Score vs. Training Episodes")
 plt.xlabel("Training Episode")
 plt.ylabel("Final Score")
