@@ -2,8 +2,9 @@ import random
 import numpy as np
 from civilisation_simulation_env import CivilizationSimulation_ENV
 
-SEED = 7  # Fixed seed for reproducibility
+SEED = 7  # fixed seed for reproducibility
 
+# Civilization environment wrapper for Hi-MAPPO agents
 class CivilizationEnv_HiMAPPO:
     def __init__(self, rows=5, cols=5, num_tribes=3, seed=None):
         self.rows = rows
@@ -21,7 +22,7 @@ class CivilizationEnv_HiMAPPO:
         self.observation_space = (rows, cols, 3)
         self.last_scores = [0] * self.num_agents
 
-        # Reward shaping weights
+        # reward shaping weights
         self.weight_pop = 1.5
         self.weight_food = 0.05
         self.weight_survival = 2.0
@@ -30,11 +31,13 @@ class CivilizationEnv_HiMAPPO:
         self.last_avg_score = 0.0
 
     def reset(self):
+        # reset environment to new simulation
         self.sim = CivilizationSimulation_ENV(self.rows, self.cols, self.num_tribes)
         self.last_scores = [0] * self.num_agents
         return self._get_obs()
 
     def _get_obs(self):
+        # return current grid observations
         obs = np.zeros((self.rows, self.cols, 3))
         for i in range(self.rows):
             for j in range(self.cols):
@@ -44,36 +47,26 @@ class CivilizationEnv_HiMAPPO:
 
     def step(self, actions, goals=None):
         """
-        Execute one environment step based on agent actions.
+        Execute one environment step based on given agent actions.
 
-        Special part: `self.sim.take_turn(actions)` is a customized simulator update.
-        - It applies all agent actions simultaneously.
-        - Updates population, food, and territory of each tribe.
-        - Internally tracks expansion success and previous population for reward calculation.
+        - apply all tribe actions simultaneously
+        - update grid population, food, territory
+        - compute shaped rewards based on progress and goal achievement
         """
-
         self.sim.take_turn(actions)
-
         obs = self._get_obs()
-
         rewards = self._compute_rewards(goals)
-
         done = False
         return obs, rewards, done, {}
 
     def _compute_rewards(self, goals=None):
         """
-        Calculate complex rewards combining multiple signals:
-        - Local progress (population, food, survival)
-        - Expansion bonus from successful new territory claims
-        - Manager-specified goal bonuses (grow / expand success)
-        - Improvement in overall civilization scores
-
-        Purpose:
-        Encourage agents to develop civilizations sustainably,
-        balancing expansion, food management, and population growth.
+        Calculate detailed rewards:
+        - local growth (population, food, survival)
+        - expansion bonuses for conquering new cells
+        - bonus for achieving manager-specified goals (grow or expand)
+        - bonus/penalty based on change in civilization score
         """
-
         local_rewards = [0.0] * self.num_agents
         population_now = [0] * self.num_agents
 
@@ -89,7 +82,6 @@ class CivilizationEnv_HiMAPPO:
                     )
                     population_now[tid] += cell.population
 
-        # Detect how much population grew during this turn
         pop_growth = [max(0, now - before) for now, before in zip(population_now, self.sim.population_before)]
         growth_bonus = [0.0] * self.num_agents
         expand_bonus = [0.0] * self.num_agents
@@ -97,19 +89,16 @@ class CivilizationEnv_HiMAPPO:
         if goals is not None:
             for i in range(self.num_agents):
                 if goals[i] == 1 and pop_growth[i] > 0:
-                    growth_bonus[i] = 5.0  # Bonus for achieving "grow" goal assigned by the manager
+                    growth_bonus[i] = 5.0
                 if goals[i] == 2 and self.sim.expansion_success[i] == 1:
-                    expand_bonus[i] = 10.0  # Bonus for achieving "expand" goal assigned by the manager
+                    expand_bonus[i] = 10.0
 
-        # Extra expansion bonus calculated from actual new territory claimed
         expansion_bonus = [e * 10.0 for e in self.sim.expand_reward]
 
-        # Compute the change in civilization-level scores
         current_scores = self.compute_final_scores()
         score_rewards = [curr - prev for curr, prev in zip(current_scores, self.last_scores)]
         self.last_scores = current_scores
 
-        # Final reward combines all components: local + expansion + score bonus + goal bonus
         mixed_rewards = [
             local + self.weight_expand * expand + self.lambda_score * score + grow + expand_succeed
             for local, expand, score, grow, expand_succeed in zip(
@@ -120,15 +109,11 @@ class CivilizationEnv_HiMAPPO:
 
     def _update_reward_weights(self, current_scores):
         """
-        Dynamically adjust reward shaping weights based on agent progress.
+        Adjust reward weights dynamically based on agent progress.
 
-        - If agents' average scores improved, slightly increase reward weights (positive reinforcement).
-        - If performance stagnated or dropped, slightly decay the weights (penalize wrong behaviors).
-
-        Purpose:
-        Help the training dynamically adapt over long periods without manual tuning.
+        - if agents improve, slightly boost weights
+        - if agents stagnate, slightly decay weights
         """
-
         avg_score = sum(current_scores) / len(current_scores)
 
         if avg_score > self.last_avg_score:
@@ -148,14 +133,11 @@ class CivilizationEnv_HiMAPPO:
 
     def compute_final_scores(self, H=5, food_per_person=0.2):
         """
-        Compute the final overall score for each tribe based on:
-        - Territory controlled (number of cells)
-        - Population size (normalized by grid size)
-        - Food sufficiency (enough food to feed population over H turns)
-
-        This score serves as an indicator of each tribe's long-term viability and success.
+        Compute long-term civilization scores based on:
+        - territory controlled
+        - normalized population size
+        - food sufficiency for H future turns
         """
-
         total_cells = self.rows * self.cols
         max_population_per_cell = 10
         scores = []
@@ -195,14 +177,17 @@ class CivilizationEnv_HiMAPPO:
         return scores
 
     def render(self):
+        # print grid state and stats
         self.sim.printGrid()
         self.sim.printDebugInfo()
         self.sim.printStats()
         print("Final scores:", self.compute_final_scores())
 
     def get_global_state(self):
+        # flatten the full grid observation
         return self._get_obs().flatten()
 
     def get_agent_obs(self):
+        # return identical flat observation for each agent
         state = self._get_obs().flatten()
         return [state.copy() for _ in range(self.num_agents)]
