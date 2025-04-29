@@ -10,6 +10,7 @@ from civilization_mixed_env import CivilizationMixedEnv
 from mappo import MAPPOAgent
 from hi_mappo import HiMAPPOAgent
 from qmix import QMIXAgent
+from mcts_hi_mappo_compete import MCTS
 
 # set random seed for reproducibility
 SEED = 7
@@ -17,13 +18,13 @@ random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-# environment and training settings
+# simulation parameters
 rows, cols = 10, 10
 num_tribes = 5
 num_generations = 100
 steps_per_generation = 8
 
-# define agent type for each tribe
+# define agent type for each tribe (1-indexed)
 tribe_to_agent_type = {
     1: "MAPPO",
     2: "HiMAPPO",
@@ -32,29 +33,29 @@ tribe_to_agent_type = {
     5: "Random"
 }
 
-# initialize environment
+# initialize mixed-agent environment
 env = CivilizationMixedEnv(rows, cols, tribe_to_agent_type, seed=SEED)
 
 obs_dim = rows * cols * 3
 act_dim = 3
 goal_dim = 3
 
-# load pre-trained MAPPO agent
+# load MAPPO agent (only 1 agent used)
 mappo_agent = MAPPOAgent(obs_dim, act_dim, num_agents=1)
 mappo_agent.actors[0].load_state_dict(torch.load(os.path.join("trained_models_mappo", "actor_0.pth")))
 mappo_agent.critic.load_state_dict(torch.load(os.path.join("trained_models_mappo", "critic.pth")))
 
-# load pre-trained Hi-MAPPO agent
+# load Hi-MAPPO agent
 hi_agent = HiMAPPOAgent(obs_dim, obs_dim, goal_dim, act_dim, num_agents=1)
 hi_agent.workers[0].load_state_dict(torch.load(os.path.join("trained_models_hi_mappo", "worker_0.pth")))
 hi_agent.manager.load_state_dict(torch.load(os.path.join("trained_models_hi_mappo", "manager.pth")))
 
-# load pre-trained Hi-MAPPO (no MCTS) agent
+# load Hi-MAPPO without MCTS
 hi_agent_no_mcts = HiMAPPOAgent(obs_dim, obs_dim, goal_dim, act_dim, num_agents=1)
 hi_agent_no_mcts.workers[0].load_state_dict(torch.load(os.path.join("trained_models_hi_mappo_no_mcts", "worker_0.pth")))
 hi_agent_no_mcts.manager.load_state_dict(torch.load(os.path.join("trained_models_hi_mappo_no_mcts", "manager.pth")))
 
-# load pre-trained QMIX agent (only 1 agent used)
+# load QMIX agent (single-agent version)
 qmix_agent = QMIXAgent(
     obs_dim=obs_dim,
     state_dim=obs_dim,
@@ -73,10 +74,8 @@ qmix_agent.mix_net.load_state_dict(torch.load(os.path.join("trained_models_qmix"
 results = []
 
 def compute_individual_scores(env, tribe_id):
-    """compute individual scores: territory, population, food"""
-    territory = 0
-    population = 0
-    food = 0
+    """Compute individual components of score for a tribe."""
+    territory, population, food = 0, 0, 0
     for i in range(env.rows):
         for j in range(env.cols):
             cell = env.grid[i][j]
@@ -84,15 +83,18 @@ def compute_individual_scores(env, tribe_id):
                 territory += 1
                 population += cell.population
                 food += cell.food
+
     total_cells = env.rows * env.cols
     max_population_per_cell = 10
+
     pop_score = population / (max_population_per_cell * total_cells)
     territory_score = territory / total_cells
     food_score = food / (population * 0.2 * 5 + 1e-6)
     food_score = min(food_score, 1.0)
+
     return pop_score, food_score, territory_score
 
-# reset environment and start evaluation
+# start simulation loop
 env.reset()
 pbar = tqdm(total=num_generations * steps_per_generation, desc="Competing", dynamic_ncols=True)
 
@@ -103,29 +105,32 @@ for generation in range(num_generations):
         actions = []
         global_state = torch.tensor(env.get_global_state(), dtype=torch.float32)
 
-        # select action for each tribe
+        # determine actions for each tribe
         for tribe_id in range(1, num_tribes + 1):
             agent_type = tribe_to_agent_type[tribe_id]
+            obs = torch.tensor(env.get_obs(tribe_id), dtype=torch.float32)
 
             if agent_type == "MAPPO":
-                obs = torch.tensor(env.get_obs(tribe_id), dtype=torch.float32)
                 action, _ = mappo_agent.select_action([obs])
                 actions.append(action[0])
 
             elif agent_type == "HiMAPPO":
-                obs = torch.tensor(env.get_obs(tribe_id), dtype=torch.float32)
-                goal, _ = hi_agent.select_goals(global_state)
+                if generation % 20 == 0:
+                    # periodically use MCTS to plan high-level goal
+                    mcts = MCTS(hi_agent, env, controlled_tribe_id=tribe_id, state_tensor=global_state, num_simulations=10)
+                    best_goal = mcts.run()
+                    goal = torch.tensor([best_goal])
+                else:
+                    goal, _ = hi_agent.select_goals(global_state)
                 action, _ = hi_agent.select_actions([obs], goal)
                 actions.append(action[0])
 
             elif agent_type == "HiMAPPO_No_MCTS":
-                obs = torch.tensor(env.get_obs(tribe_id), dtype=torch.float32)
                 goal, _ = hi_agent_no_mcts.select_goals(global_state)
                 action, _ = hi_agent_no_mcts.select_actions([obs], goal)
                 actions.append(action[0])
 
             elif agent_type == "QMIX":
-                obs = torch.tensor(env.get_obs(tribe_id), dtype=torch.float32)
                 action = qmix_agent.select_actions([obs], epsilon=0.0)[0]
                 actions.append(action)
 
@@ -135,9 +140,10 @@ for generation in range(num_generations):
             else:
                 raise ValueError(f"Unknown agent type: {agent_type}")
 
+        # environment applies joint actions
         env.step(actions)
 
-        # record scores
+        # collect and store per-tribe scores
         scores = env.compute_final_scores()
         for tribe_id in range(1, num_tribes + 1):
             algorithm = tribe_to_agent_type[tribe_id]
@@ -158,15 +164,16 @@ for generation in range(num_generations):
 
 pbar.close()
 
-# save evaluation results
+# save results to CSV
 os.makedirs("logs", exist_ok=True)
 results_df = pd.DataFrame(results)
 results_df.to_csv("mixed_agent_results.csv", index=False)
 print("[INFO] Score data saved to mixed_agent_results.csv")
 
-# plot final territory and scores
+# render final map + save territory heatmap
 env.render(save_path="logs/final_territory_heatmap.png")
 
+# plot score curve over time
 plt.figure(figsize=(10, 6))
 for algo in results_df["algorithm"].unique():
     algo_df = results_df[results_df["algorithm"] == algo]
