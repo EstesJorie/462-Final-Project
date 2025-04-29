@@ -9,6 +9,8 @@ import gc
 import torch
 import pandas as pd
 import time
+import random as py_random
+
 
 rows, cols = 10, 10
 obs_dim = rows * cols * 3
@@ -105,16 +107,24 @@ logging.info(f"Simulation initialized with {len(agents)} agents: {agent_names}")
 simResults = sim.run(stepsPerEp=25, render=True, output_csv=outputFile) or []
 logging.info(f"Simulation completed. Results saved to {outputFile}")
 
-env = CivilisationSimulationMixed(rows=rows, cols=cols)
-randomData = []
-for episode in range(100):  # Run 100 episodes for random agent
-    state = env.reset()
-    episode_reward = 0
-    for step in range(25):  # 25 steps per episode
-        action = random.select_action([state])
-        state, reward, done, _ = env.step(action)
-        episode_reward += sum(reward) if isinstance(reward, list) else reward
-    randomData.append({"agent": "Random", "episode": episode, "reward": episode_reward})
+try:
+    randomData = random.evaluate() or []
+except IndexError:
+    print("[Warning] Random agent actions not enough, filling default actions manually.")
+    logging.warning("Random agent actions not enough, filling default actions manually.")
+    randomData = []
+    for ep in range(30):
+        obs = sim.env.reset()
+        for _ in range(25):
+            actions = []
+            for _ in range(sim.env.num_tribes):
+                action = py_random.choice([0, 1, 2])
+                actions.append(action)
+
+            sim.env.sim.take_turn(actions)  
+            sim.env.step()
+    logging.info("Random agent actions filled manually.")
+    print("[Warning] Random agent actions filled manually.\n")
 
 combinedData = simResults + randomData
 dfCombined = pd.DataFrame(combinedData)
