@@ -51,7 +51,7 @@ class CivilisationSimulationMixed:
                 index += 3 
         return obs
     
-    def step(self):
+    def step(self, actions=None):
         actions = []
         self.actions_last_step = []  
         obs = self._get_obs()
@@ -59,7 +59,7 @@ class CivilisationSimulationMixed:
         for i, agent in enumerate(self.agents):
             agent_obs = torch.tensor(obs.flatten(), dtype=torch.float32)
             action = agent.select_action([agent_obs])[0]  
-            actions.append(action)
+            actions.append((i + 1, action))  #tuple of (tribe_id, action)
             self.actions_last_step.append((i + 1, action)) 
 
         self.sim.take_turn(actions)
@@ -171,7 +171,16 @@ class CivilisationSimulationMixed:
         gc.collect()
 
     def get_population_score(self):
-        return [agent.get_population() for agent in self.agents]
+        population_scores = []
+        max_population_per_cell = 10  # assuming this is the max population per cell
+        total_max_population = self.rows * self.cols * max_population_per_cell
+        
+        for tribe_id in range(1, self.num_tribes + 1):
+            total_population = sum(self.grid[x][y].population for x in range(self.rows) 
+                                for y in range(self.cols) if self.grid[x][y].tribe == tribe_id)
+            population_score = total_population / total_max_population if total_max_population > 0 else 0
+            population_scores.append(population_score)
+        return population_scores
     
     def get_food_score(self):
         food_scores = []

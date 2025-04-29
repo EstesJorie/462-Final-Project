@@ -31,7 +31,7 @@ def train_qmix(rows, cols, num_generations, num_tribes, seed=7, log_interval=100
         act_dim=act_dim,
         n_agents=num_tribes,
         hidden_dim=64,         
-        mixer_hidden_dim=200,  
+        mixer_hidden_dim=250,  
         buffer_size=10000,
         batch_size=64,
         lr=1e-3,
