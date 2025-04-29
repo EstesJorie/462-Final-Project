@@ -1,8 +1,9 @@
 import numpy as np
 from civilisation_simulation_env import CivilizationSimulation_ENV
 
-SEED = 7  # Fixed random seed for reproducibility
+SEED = 7  # fixed random seed for reproducibility
 
+# Civilization environment wrapper for QMIX agents
 class CivilizationEnv_QMIX:
     def __init__(self, rows=5, cols=5, num_tribes=3):
         self.rows = rows
@@ -15,7 +16,7 @@ class CivilizationEnv_QMIX:
         self.observation_space = (rows, cols, 3)
         self.last_scores = [0] * self.num_agents
 
-        # Initialize dynamic reward weights
+        # reward shaping weights
         self.weight_pop = 0.5
         self.weight_food = 0.05
         self.weight_survival = 2.0
@@ -24,11 +25,13 @@ class CivilizationEnv_QMIX:
         self.last_avg_score = 0.0
 
     def reset(self):
+        # reset environment to a new simulation
         self.sim = CivilizationSimulation_ENV(self.rows, self.cols, self.num_tribes)
         self.last_scores = [0] * self.num_agents
         return self._get_obs()
 
     def _get_obs(self):
+        # return current grid observations
         obs = np.zeros((self.rows, self.cols, 3))
         for i in range(self.rows):
             for j in range(self.cols):
@@ -38,21 +41,16 @@ class CivilizationEnv_QMIX:
 
     def step(self, actions):
         """
-        Execute one environment step based on the agents' actions.
+        Execute one environment step based on agent actions.
 
-        Special: `self.sim.take_turn(actions)` advances the full civilization simulation:
-        - Applies each tribe's action simultaneously (move, expand, collect resources).
-        - Updates the environment grid: population, food, and tribe ownership.
-        - Tracks expansion success internally (affects rewards later).
+        - apply all tribes' actions simultaneously
+        - update grid state: food, population, expansions
+        - calculate reward signals for learning
         """
-
         self.sim.take_turn(actions)
         obs = self._get_obs()
 
-        # Compute the customized rewards after taking the actions
         rewards, current_scores = self._compute_rewards()
-
-        # Dynamically update reward shaping weights based on performance
         self._update_reward_weights(current_scores)
 
         done = False
@@ -60,18 +58,13 @@ class CivilizationEnv_QMIX:
 
     def _compute_rewards(self):
         """
-        Calculate the combined reward signal for each agent.
+        Calculate shaped rewards for each agent.
 
-        Components:
-        - Local rewards: based on population, food collection, and basic survival.
-        - Expansion bonus: based on actual success in expanding territory.
-        - Score improvement: based on how much the civilization score has improved.
-
-        Design Purpose:
-        Encourage a balance between growing larger populations, gathering enough resources,
-        and expanding territory sustainably, not just greedy short-term actions.
+        Reward components:
+        - local development: population, food collected, survival
+        - expansion success: new territory gained
+        - civilization score improvement
         """
-
         local_rewards = [0.0] * self.num_agents
 
         for i in range(self.rows):
@@ -79,25 +72,18 @@ class CivilizationEnv_QMIX:
                 cell = self.sim.grid[i][j]
                 if cell.tribe:
                     idx = cell.tribe - 1
-                    # Cap the food term to avoid reward explosion for hoarded food
-                    food_term = min(cell.food, 10)
+                    food_term = min(cell.food, 10)  # cap food to avoid reward explosion
                     local_rewards[idx] += (
                         self.weight_pop * cell.population +
                         self.weight_food * (food_term ** 0.8) +
                         self.weight_survival
                     )
 
-        # Expansion rewards based on the number of successful new expansions
         expansion_bonus = self.sim.expand_reward
-
-        # Compute the final civilization scores
         current_scores = self.compute_final_scores()
-
-        # Reward difference based on score improvement from last step
         score_rewards = [curr - prev for curr, prev in zip(current_scores, self.last_scores)]
         self.last_scores = current_scores
 
-        # Combine local reward + expansion bonus + score improvement into a final reward
         mixed_rewards = [
             local + self.weight_expand * expand + self.lambda_score * score
             for local, expand, score in zip(local_rewards, expansion_bonus, score_rewards)
@@ -107,17 +93,11 @@ class CivilizationEnv_QMIX:
 
     def _update_reward_weights(self, current_scores):
         """
-        Dynamically adjust reward shaping weights based on agents' overall performance.
+        Dynamically adjust reward shaping weights based on agent progress.
 
-        If the average final score improves:
-            - Slightly increase reward weights to reinforce learning direction.
-        If the average score decreases:
-            - Decay reward weights to encourage exploration of alternative strategies.
-
-        Purpose:
-        Make the reward system adaptive without manually retuning hyperparameters during long training.
+        - if average score improves: slightly increase reward weights
+        - if stagnates or drops: slightly decay weights
         """
-
         avg_score = sum(current_scores) / len(current_scores)
 
         if avg_score > self.last_avg_score:
@@ -137,16 +117,15 @@ class CivilizationEnv_QMIX:
 
     def compute_final_scores(self, H=5, food_per_person=0.2):
         """
-        Compute civilization scores for each tribe based on:
-        - Territory controlled (area occupied)
-        - Population size (scaled to map size)
-        - Food sufficiency to sustain population over time
+        Compute long-term civilization scores.
 
-        Food sufficiency design:
-        - Excess food beyond basic need is slightly penalized (hoarding is discouraged).
-        - Final score is a weighted average: 40% territory, 40% population, 20% food efficiency.
+        Scores combine:
+        - territory controlled (40%)
+        - normalized population (40%)
+        - food sufficiency over H turns (20%)
+
+        Hoarding excess food is slightly penalized.
         """
-
         total_cells = self.rows * self.cols
         max_population_per_cell = 10
         scores = []
@@ -177,15 +156,16 @@ class CivilizationEnv_QMIX:
                 food_score = food_ratio
 
             final_score = (
-                    0.4 * territory_score +
-                    0.4 * population_score +
-                    0.2 * food_score
+                0.4 * territory_score +
+                0.4 * population_score +
+                0.2 * food_score
             )
             scores.append(final_score * 100)
 
         return scores
 
     def render(self):
+        # visualize the current grid state
         self.sim.printGrid()
         self.sim.printDebugInfo()
         self.sim.printStats()
