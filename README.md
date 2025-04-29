@@ -29,6 +29,12 @@ Additionally, a random strategy baseline is included for performance comparison.
 
 ## STEPS:
 
+> In the terminal run *[(verbatim)]*
+>> ```bash
+>>conda env create -f environment.yml
+>>conda activate 462-env
+>>```
+
 > 1. After cloning/downloading the repo, run *[train_all.py]*
 > 2. Verify that the trained model folders exist, then run *[agentCompete.py]*
 > 3. For analysis, run *[Analysis.py]*
