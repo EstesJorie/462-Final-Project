@@ -12,7 +12,7 @@ Additionally, a random strategy baseline is included for performance comparison.
 > **Note:** To contribute to this repository, please follow the steps below:
 >
 > - Fork the repository 
-> - Clone the repository [https://github.com/[USERNAME]/[REPO_FORK_NAME].git](https://github.com/EstesJorie/462-Final-Project.git)
+> - Clone the repository [https://github.com/[USERNAME]/[REPO_FORK_NAME].git]
 > - Create a new branch on cloned repository* 
 >
 >```bash 
