@@ -40,7 +40,7 @@ Additionally, a random strategy baseline is included for performance comparison.
 > 3. For analysis, run *[Analysis.py]*
 > 4. For model evaluation, run *[evaluate_all_model.py]*
 
-## 🕹️ Action Space
+## Action Space
 
 Each tribe (agent) can choose one of the following actions per step:
 
@@ -56,7 +56,7 @@ Each episode consists of 10 simulation steps. The goal is to maximize:
 
 ---
 
-## 🤖 Supported Algorithms
+## Supported Algorithms
 
 | Algorithm    | Description |
 |--------------|-------------|
